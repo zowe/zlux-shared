@@ -1,0 +1,15 @@
+{
+  "identifier": "com.rs.common.logger",
+  "apiVersion": "1.0.0",
+  "pluginVersion": "0.9.0",
+  "pluginType": "library",
+  "libraryName": "Rocket Common Logger",
+  "libraryVersion": "0.9.0",
+  "configurationData": {
+    "resources": {
+      "logging": {
+        "aggregationPolicy": "override"
+      }
+    }
+  }
+}

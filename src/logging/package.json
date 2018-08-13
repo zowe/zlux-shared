@@ -1,0 +1,19 @@
+{
+  "name": "commonjs-logger",
+  "version": "0.0.0-zlux.version.replacement",
+  "description": "The zLUX common logger for both Client and Server.",
+  "license": "private",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsc --watch"
+  },
+  "author": "Sean Grady",
+  "devDependencies": {
+    "@types/core-js": "~2.5.0",
+    "@types/node": "~8.10.23",
+    "core-js": "~2.5.7",
+    "rxjs": "~6.2.2",
+    "rxjs-compat": "~6.2.2",
+    "typescript": "~2.9.0"
+  }
+}
