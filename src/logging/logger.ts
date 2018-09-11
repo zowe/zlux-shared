@@ -48,7 +48,7 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
   }
 
   makeSublogger(componentNameSuffix:string): ComponentLogger {
-    return new ComponentLogger(this.parentLogger,this.componentName+'.'+componentNameSuffix);
+    return new ComponentLogger(this.parentLogger,this.componentName+':'+componentNameSuffix);
   }
 
   log(minimumLevel:number, message:string):void { 
