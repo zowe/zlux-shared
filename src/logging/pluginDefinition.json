@@ -1,5 +1,5 @@
 {
-  "identifier": "com.rs.common.logger",
+  "identifier": "org.zowe.zlux.logger",
   "apiVersion": "1.0.0",
   "pluginVersion": "0.9.0",
   "pluginType": "library",
