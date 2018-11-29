@@ -51,24 +51,24 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
     return new ComponentLogger(this.parentLogger,this.componentName+':'+componentNameSuffix);
   }
 
-  log(minimumLevel:number, message:string):void { 
-    this.parentLogger.log(this.componentName, minimumLevel, message);
+  log(minimumLevel:number, ...loggableItems:any[]):void { 
+    this.parentLogger.log(this.componentName, minimumLevel, ...loggableItems);
   }
 
-  severe(message:string):void { 
-    this.parentLogger.log(this.componentName, LogLevel.SEVERE, message);
+  severe(...loggableItems:any[]):void { 
+    this.parentLogger.log(this.componentName, LogLevel.SEVERE, ...loggableItems);
   }    
       
-  info(message:string):void { 
-    this.parentLogger.log(this.componentName, Logger.INFO, message);
+  info(...loggableItems:any[]):void { 
+    this.parentLogger.log(this.componentName, Logger.INFO, ...loggableItems);
   }
 
-  warn(message:string):void { 
-    this.parentLogger.log(this.componentName, Logger.WARNING, message);
+  warn(...loggableItems:any[]):void { 
+    this.parentLogger.log(this.componentName, Logger.WARNING, ...loggableItems);
   }
 
-  debug(message:string):void { 
-    this.parentLogger.log(this.componentName, Logger.FINE, message);
+  debug(...loggableItems:any[]):void { 
+    this.parentLogger.log(this.componentName, Logger.FINE, ...loggableItems);
   }
 
 }
@@ -82,7 +82,7 @@ class RegExpLevel {
 }
 
 export class Logger implements ZLUX.Logger {
-  private destinations: Array<(componentName:string, minimumLevel: LogLevel, message:string)=>void>;
+  private destinations: Array<(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void>;
   private configuration: {[key:string]:LogLevel};
   private componentLoggers:Map<string,ComponentLogger> = new Map();
   private previousPatterns: RegExpLevel[];
@@ -96,11 +96,11 @@ export class Logger implements ZLUX.Logger {
   
   constructor(){
     this.configuration = {};
-    this.destinations = new Array<(componentName:string, minimumLevel: LogLevel, message:string)=>void>();    
+    this.destinations = new Array<(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void>();    
     this.previousPatterns = new Array<RegExpLevel>();    
   }
 
-  addDestination(destinationCallback:(componentName:string, minimumLevel: LogLevel, message:string)=>void):void {
+  addDestination(destinationCallback:(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void):void {
     this.destinations.push(destinationCallback);
   }
 
@@ -112,46 +112,46 @@ export class Logger implements ZLUX.Logger {
     return configuredLevel >= level;
   };
 
-private consoleLogInternal(componentName:string,
+  private consoleLogInternal(componentName:string,
                            minimumLevel:LogLevel,
-                           message:string,
                            prependDate?:boolean,
                            prependName?:boolean,
-                           prependLevel?:boolean):void {
-    var formattedMessage = '[';
+                           prependLevel?:boolean,
+                           ...loggableItems:any[]):void {
+    var formatting = '[';
     if (prependDate) {
       var d = new Date();
       var msOffset = d.getTimezoneOffset()*60000;
       d.setTime(d.getTime()-msOffset);
       var dateString = d.toISOString();
       dateString = dateString.substring(0,dateString.length-1).replace('T',' ');
-      formattedMessage += dateString+ ' ';
+      formatting += dateString+ ' ';
     }
     if (prependName) {
-      formattedMessage += componentName+ ' ';
+      formatting += componentName+ ' ';
     }
     if (prependLevel) {
-      formattedMessage += LogLevel[minimumLevel];
+      formatting += LogLevel[minimumLevel];
     }
-    formattedMessage += "] - "+message;
-    console.log(formattedMessage);
+    formatting += "] -";
+    console.log(formatting, ...loggableItems);
   };
 
   makeDefaultDestination(prependDate?:boolean, 
                                  prependName?:boolean, 
                                  prependLevel?:boolean): (x:string,y:LogLevel,z:string) => void {
     let theLogger:Logger = this;
-    return function(componentName:string, minimumLevel:LogLevel, message:string){
+    return function(componentName:string, minimumLevel:LogLevel, ...loggableItems:any[]){
       if (theLogger.shouldLogInternal(componentName, minimumLevel)){
-        theLogger.consoleLogInternal(componentName,minimumLevel,message,prependDate,prependName,prependLevel);
+        theLogger.consoleLogInternal(componentName,minimumLevel,prependDate,prependName,prependLevel,...loggableItems);
       }
     };
   };
 
-  log(componentName:string, minimumLevel:LogLevel, message:string):void{
+  log(componentName:string, minimumLevel:LogLevel, ...loggableItems:any[]):void{
     this.noteComponentNameInternal(componentName);
     this.destinations.forEach(function (destinationCallback:any){
-        destinationCallback(componentName, minimumLevel, message);
+        destinationCallback(componentName, minimumLevel, ...loggableItems);
       });
   };
 
@@ -197,7 +197,7 @@ private consoleLogInternal(componentName:string,
   makeComponentLogger(componentName:string):ComponentLogger{
     let componentLogger:ComponentLogger|undefined = this.componentLoggers.get(componentName);
     if (componentLogger){
-      this.consoleLogInternal("<internal>",LogLevel.WARNING,'Logger created with identical component name to pre-existing logger. Messages overlap may occur.',true,false,true);
+      this.consoleLogInternal("<internal>",LogLevel.WARNING,true,false,true,'Logger created with identical component name to pre-existing logger. Messages overlap may occur.');
     } else {
       componentLogger = new ComponentLogger(this,componentName);
       this.configuration[componentName] = LogLevel.INFO;
@@ -208,6 +208,7 @@ private consoleLogInternal(componentName:string,
   }
   
 }
+
 
 
 /*
