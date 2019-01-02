@@ -1,4 +1,4 @@
-const logModule = require('./logger.js');
+const logModule = require('../../src/logging/logger.js');
 
 function testDuplicate(logger) {
   logger.makeComponentLogger('foo');
