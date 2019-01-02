@@ -17,11 +17,11 @@ export declare class ComponentLogger implements ZLUX.ComponentLogger {
     FINEST: number;
     constructor(parentLogger: Logger, componentName: string);
     makeSublogger(componentNameSuffix: string): ComponentLogger;
-    log(minimumLevel: number, message: string): void;
-    severe(message: string): void;
-    info(message: string): void;
-    warn(message: string): void;
-    debug(message: string): void;
+    log(minimumLevel: number, ...loggableItems: any[]): void;
+    severe(...loggableItems: any[]): void;
+    info(...loggableItems: any[]): void;
+    warn(...loggableItems: any[]): void;
+    debug(...loggableItems: any[]): void;
 }
 export declare class Logger implements ZLUX.Logger {
     private destinations;
@@ -36,11 +36,11 @@ export declare class Logger implements ZLUX.Logger {
     static FINER: number;
     static FINEST: number;
     constructor();
-    addDestination(destinationCallback: (componentName: string, minimumLevel: LogLevel, message: string) => void): void;
+    addDestination(destinationCallback: (componentName: string, minimumLevel: LogLevel, ...loggableItems: any[]) => void): void;
     private shouldLogInternal;
     private consoleLogInternal;
     makeDefaultDestination(prependDate?: boolean, prependName?: boolean, prependLevel?: boolean): (x: string, y: LogLevel, z: string) => void;
-    log(componentName: string, minimumLevel: LogLevel, message: string): void;
+    log(componentName: string, minimumLevel: LogLevel, ...loggableItems: any[]): void;
     setLogLevelForComponentPattern(componentNamePattern: string, level: LogLevel): void;
     setLogLevelForComponentName(componentName: string, level: LogLevel | number): void;
     getComponentLevel(componentName: string): LogLevel;

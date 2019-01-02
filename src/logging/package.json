@@ -5,7 +5,8 @@
   "license": "private",
   "scripts": {
     "build": "tsc",
-    "start": "tsc --watch"
+    "start": "tsc --watch",
+    "simpleTest": "node ../../test/logging/simpleTest.js"
   },
   "author": "Sean Grady",
   "devDependencies": {
