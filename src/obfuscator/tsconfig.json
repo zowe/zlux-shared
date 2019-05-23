@@ -1,0 +1,34 @@
+{
+  "compileOnSave": true,
+  "include": [
+    "../../../zlux-platform/interface/src/index.d.ts",
+    "./*.ts"
+  ],
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "../dts",
+    "sourceMap": true,
+    "moduleResolution": "node",
+    "module": "commonjs",
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "strictNullChecks": true,
+    "skipLibCheck": true,
+    "target": "es5",
+    "types": [
+      "core-js"
+    ],
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+    "lib": [
+      "es2015",
+      "dom"
+    ]
+  }
+}
