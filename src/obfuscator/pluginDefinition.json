@@ -1,15 +1,8 @@
 {
   "identifier": "org.zowe.zlux.html.obfuscator",
   "apiVersion": "1.0.0",
-  "pluginVersion": "0.9.0",
+  "pluginVersion": "1.0.0",
   "pluginType": "library",
   "libraryName":"HTML Obfuscator",
-  "libraryVersion": "0.9.0",
-  "configurationData": {
-    "resources": {
-      "logging": {
-        "aggregationPolicy": "override"
-      }
-    }
-  }
+  "libraryVersion": "1.0.0"
 }
