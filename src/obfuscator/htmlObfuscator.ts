@@ -16,7 +16,7 @@ export class HtmlObfuscator {
 
   public findAndReplaceHTMLEntities(str: string): string {
     let regexHTMLEnd   = new RegExp('<\/[A-Za-z0-9]+\\s?>');
-    let regexHTMLStart = new RegExp('<[A-Za-z0-9]+(\\s+\\S*)?>|<[A-Za-z0-9]+(\\s?)>');
+    let regexHTMLStart = new RegExp('<[A-Za-z0-9]+(\\s+\\S+.*)?>|<[A-Za-z0-9]+\\s?\/?>');
 
     var newString = str;
 
