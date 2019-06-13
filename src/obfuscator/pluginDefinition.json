@@ -1,0 +1,8 @@
+{
+  "identifier": "org.zowe.zlux.html.obfuscator",
+  "apiVersion": "1.0.0",
+  "pluginVersion": "1.0.0",
+  "pluginType": "library",
+  "libraryName":"HTML Obfuscator",
+  "libraryVersion": "1.0.0"
+}
