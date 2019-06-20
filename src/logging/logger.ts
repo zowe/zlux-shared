@@ -17,34 +17,46 @@
 // time/data/functionname/linenumber
 // maybe polyfill from https://www.stacktracejs.com/#!/docs/stacktrace-js 
 
+declare var process: {pid: number,
+                     geteuid: any};
+process; /* get rid of TS error */
+
 export enum LogLevel {
-  SEVERE,
-  WARNING,
+  FATAL,
+  WARN,
   INFO,
-  FINE,
+  DEBUG,
   FINER,
-  FINEST,
+  TRACE,
 }
 
 export class ComponentLogger implements ZLUX.ComponentLogger {
   private parentLogger:Logger;
   private componentName:string;
   public SEVERE: number;
+  public FATAL: number;
+  public WARN: number;
   public WARNING: number;
   public INFO: number;
   public FINE: number;
+  public DEBUG: number;
   public FINER: number;
   public FINEST: number;
+  public TRACE: number;
   
   constructor(parentLogger:Logger,componentName:string){
     this.parentLogger = parentLogger;
     this.componentName = componentName;
-    this.SEVERE = LogLevel.SEVERE;
-    this.WARNING = LogLevel.WARNING;
+    this.FATAL = LogLevel.FATAL;
+    this.SEVERE = LogLevel.FATAL;
+    this.WARNING = LogLevel.WARN;
+    this.WARN = LogLevel.WARN;
     this.INFO = LogLevel.INFO;
-    this.FINE = LogLevel.FINE;
+    this.FINE = LogLevel.DEBUG;
+    this.DEBUG = LogLevel.DEBUG;    
     this.FINER = LogLevel.FINER;
-    this.FINEST = LogLevel.FINEST;    
+    this.FINEST = LogLevel.TRACE;
+    this.TRACE = LogLevel.TRACE;
   }
 
   makeSublogger(componentNameSuffix:string): ComponentLogger {
@@ -56,20 +68,28 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
   }
 
   severe(...loggableItems:any[]):void { 
-    this.parentLogger.log(this.componentName, LogLevel.SEVERE, ...loggableItems);
+    this.parentLogger.log(this.componentName, LogLevel.FATAL, ...loggableItems);
+  }
+  
+  fatal(...loggableItems:any[]):void { 
+    this.parentLogger.log(this.componentName, LogLevel.FATAL, ...loggableItems);
   }    
-      
+  
   info(...loggableItems:any[]):void { 
     this.parentLogger.log(this.componentName, Logger.INFO, ...loggableItems);
   }
 
   warn(...loggableItems:any[]):void { 
-    this.parentLogger.log(this.componentName, Logger.WARNING, ...loggableItems);
+    this.parentLogger.log(this.componentName, Logger.WARN, ...loggableItems);
   }
 
   debug(...loggableItems:any[]):void { 
-    this.parentLogger.log(this.componentName, Logger.FINE, ...loggableItems);
+    this.parentLogger.log(this.componentName, Logger.DEBUG, ...loggableItems);
   }
+
+  trace(...loggableItems:any[]):void { 
+    this.parentLogger.log(this.componentName, Logger.TRACE, ...loggableItems);
+  }  
 
 }
 
@@ -87,17 +107,32 @@ export class Logger implements ZLUX.Logger {
   private componentLoggers:Map<string,ComponentLogger> = new Map();
   private previousPatterns: RegExpLevel[];
   private knownComponentNames:string[] = []; 
-  public static SEVERE: number = LogLevel.SEVERE;
-  public static WARNING: number = LogLevel.WARNING;
+  public static SEVERE: number = LogLevel.FATAL;
+  public static FATAL: number = LogLevel.FATAL;
+  public static WARNING: number = LogLevel.WARN;
+  public static WARN: number = LogLevel.WARN;
   public static INFO: number = LogLevel.INFO;
-  public static FINE: number = LogLevel.FINE;
+  public static DEBUG: number = LogLevel.DEBUG;
+  public static FINE: number = LogLevel.DEBUG;
   public static FINER: number = LogLevel.FINER;
-  public static FINEST: number = LogLevel.FINEST;
+  public static FINEST: number = LogLevel.TRACE;
+  public static TRACE: number = LogLevel.TRACE;
+  private static processId?: number;
+  private static isUnixoid?: boolean = false;
   
   constructor(){
     this.configuration = {};
     this.destinations = new Array<(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void>();    
-    this.previousPatterns = new Array<RegExpLevel>();    
+    this.previousPatterns = new Array<RegExpLevel>();
+    if (!Logger.processId) {
+      let runningInNode = new Function(`try { return this === global; } catch (error) { return false; }`);
+      if (runningInNode()) {
+        Logger.processId = process.pid;
+        let os = require('os');
+        let platform = os.platform();
+        Logger.isUnixoid = platform != 'win32' && platform != 'android';
+      }
+    }
   }
 
   addDestination(destinationCallback:(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void):void {
@@ -117,33 +152,51 @@ export class Logger implements ZLUX.Logger {
                            prependDate?:boolean,
                            prependName?:boolean,
                            prependLevel?:boolean,
+                           prependProcess?: boolean,
+                           prependUid?: boolean,
                            ...loggableItems:any[]):void {
-    var formatting = '[';
+    var formatting = '';
     if (prependDate) {
       var d = new Date();
       var msOffset = d.getTimezoneOffset()*60000;
       d.setTime(d.getTime()-msOffset);
       var dateString = d.toISOString();
       dateString = dateString.substring(0,dateString.length-1).replace('T',' ');
-      formatting += dateString+ ' ';
+      formatting += `${dateString} `;
     }
-    if (prependName) {
-      formatting += componentName+ ' ';
+    if (prependProcess && Logger.processId) {
+      formatting += `<ZWED:${Logger.processId}> `;
+    }
+    if (prependUid && Logger.isUnixoid) {
+      formatting += `${process.geteuid()} `;
     }
     if (prependLevel) {
-      formatting += LogLevel[minimumLevel];
+      formatting += `${LogLevel[minimumLevel]} `;
     }
-    formatting += "] -";
-    console.log(formatting, ...loggableItems);
+    if (prependName) {
+      formatting += `(${componentName}) `;
+    }
+    if (minimumLevel === LogLevel.FATAL) {
+      console.error(formatting, ...loggableItems);
+    } else if (minimumLevel === LogLevel.WARN) {
+      console.warn(formatting, ...loggableItems);
+    } else {
+      console.log(formatting, ...loggableItems);
+    }
+    
   };
 
   makeDefaultDestination(prependDate?:boolean, 
-                                 prependName?:boolean, 
-                                 prependLevel?:boolean): (x:string,y:LogLevel,z:string) => void {
+                         prependName?:boolean, 
+                         prependLevel?:boolean,
+                         prependProcess?:boolean,
+                         prependUid?:boolean): (x:string,y:LogLevel,z:string) => void {
     let theLogger:Logger = this;
     return function(componentName:string, minimumLevel:LogLevel, ...loggableItems:any[]){
       if (theLogger.shouldLogInternal(componentName, minimumLevel)){
-        theLogger.consoleLogInternal(componentName,minimumLevel,prependDate,prependName,prependLevel,...loggableItems);
+        theLogger.consoleLogInternal(componentName,minimumLevel,
+                                     prependDate,prependName,prependLevel,prependProcess,prependUid,
+                                     ...loggableItems);
       }
     };
   };
@@ -168,7 +221,7 @@ export class Logger implements ZLUX.Logger {
   };
 
   setLogLevelForComponentName(componentName:string, level:LogLevel|number):void{
-    if (level >= LogLevel.SEVERE && level <= LogLevel.FINEST) {
+    if (level >= LogLevel.FATAL && level <= LogLevel.TRACE) {
       this.configuration[componentName] = level;
     }
   }
@@ -197,7 +250,9 @@ export class Logger implements ZLUX.Logger {
   makeComponentLogger(componentName:string):ComponentLogger{
     let componentLogger:ComponentLogger|undefined = this.componentLoggers.get(componentName);
     if (componentLogger){
-      this.consoleLogInternal("<internal>",LogLevel.WARNING,true,false,true,'Logger created with identical component name to pre-existing logger. Messages overlap may occur.');
+      this.consoleLogInternal("<internal>",LogLevel.WARN,
+                              true,false,true,true,true,
+                              'Logger created with identical component name to pre-existing logger. Messages overlap may occur.');
     } else {
       componentLogger = new ComponentLogger(this,componentName);
       this.configuration[componentName] = LogLevel.INFO;
