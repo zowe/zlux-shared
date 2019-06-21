@@ -56,12 +56,16 @@ export declare class Logger implements ZLUX.Logger {
     static FINEST: number;
     static TRACE: number;
     private static processId?;
-    private static isUnixoid?;
+    private static username?;
+    private static euid?;
+    private static os?;
+    private static timezoneOffsetMs;
     constructor();
     addDestination(destinationCallback: (componentName: string, minimumLevel: LogLevel, ...loggableItems: any[]) => void): void;
     private shouldLogInternal;
+    private static createPrependingStrings;
     private consoleLogInternal;
-    makeDefaultDestination(prependDate?: boolean, prependName?: boolean, prependLevel?: boolean, prependProcess?: boolean, prependUid?: boolean): (x: string, y: LogLevel, z: string) => void;
+    makeDefaultDestination(prependDate?: boolean, prependName?: boolean, prependLevel?: boolean, prependProcess?: boolean, prependUser?: boolean): (x: string, y: LogLevel, z: string) => void;
     log(componentName: string, minimumLevel: LogLevel, ...loggableItems: any[]): void;
     setLogLevelForComponentPattern(componentNamePattern: string, level: LogLevel): void;
     setLogLevelForComponentName(componentName: string, level: LogLevel | number): void;
