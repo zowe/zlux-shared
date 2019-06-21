@@ -118,19 +118,30 @@ export class Logger implements ZLUX.Logger {
   public static FINEST: number = LogLevel.TRACE;
   public static TRACE: number = LogLevel.TRACE;
   private static processId?: number;
-  private static isUnixoid?: boolean = false;
+  private static username?: string;
+  private static euid?: number;
+  private static os?: any;
+  private static timezoneOffsetMs: number;
   
   constructor(){
     this.configuration = {};
+    Logger.timezoneOffsetMs = new Date().getTimezoneOffset()*60000;
     this.destinations = new Array<(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void>();    
     this.previousPatterns = new Array<RegExpLevel>();
     if (!Logger.processId) {
       let runningInNode = new Function(`try { return this === global; } catch (error) { return false; }`);
       if (runningInNode()) {
         Logger.processId = process.pid;
-        let os = require('os');
-        let platform = os.platform();
-        Logger.isUnixoid = platform != 'win32' && platform != 'android';
+        Logger.os = require('os');
+        try {
+          Logger.username = Logger.os.userInfo().username;
+        } catch (e) {
+          //OK
+          let platform = Logger.os.platform();
+          if (platform != 'win32' && platform != 'android') {
+            Logger.euid = process.geteuid();
+          }
+        }
       }
     }
   }
@@ -147,34 +158,56 @@ export class Logger implements ZLUX.Logger {
     return configuredLevel >= level;
   };
 
+  private static createPrependingStrings(prependLevel?: boolean,
+                                         prependProcess?: boolean,
+                                         prependUser?: boolean): string[] {
+    let formatting = '';
+    if (prependProcess && Logger.processId) {
+      formatting += `<ZWED:${Logger.processId}> `;
+    }
+    if (prependUser && Logger.username) {
+      formatting += `${Logger.username} `;
+    } else if (prependUser && Logger.euid) {
+      formatting += `${Logger.euid} `;
+    }
+    if (prependLevel) {
+        return [
+          `${formatting}${LogLevel[0]} `,
+          `${formatting}${LogLevel[1]} `,
+          `${formatting}${LogLevel[2]} `,
+          `${formatting}${LogLevel[3]} `,
+          `${formatting}${LogLevel[4]} `,
+          `${formatting}${LogLevel[5]} `,
+        ];
+    } else {
+      return [
+        `${formatting} `,
+        `${formatting} `,
+        `${formatting} `,
+        `${formatting} `,
+        `${formatting} `,
+        `${formatting} `,
+      ];
+    }    
+  }
+
   private consoleLogInternal(componentName:string,
-                           minimumLevel:LogLevel,
-                           prependDate?:boolean,
-                           prependName?:boolean,
-                           prependLevel?:boolean,
-                           prependProcess?: boolean,
-                           prependUid?: boolean,
-                           ...loggableItems:any[]):void {
+                             minimumLevel:LogLevel,
+                             prependingString:string,
+                             prependDate?:boolean,
+                             prependName?:boolean,
+                             ...loggableItems:any[]):void {
     var formatting = '';
     if (prependDate) {
       var d = new Date();
-      var msOffset = d.getTimezoneOffset()*60000;
-      d.setTime(d.getTime()-msOffset);
+      d.setTime(d.getTime()-Logger.timezoneOffsetMs);
       var dateString = d.toISOString();
       dateString = dateString.substring(0,dateString.length-1).replace('T',' ');
       formatting += `${dateString} `;
     }
-    if (prependProcess && Logger.processId) {
-      formatting += `<ZWED:${Logger.processId}> `;
-    }
-    if (prependUid && Logger.isUnixoid) {
-      formatting += `${process.geteuid()} `;
-    }
-    if (prependLevel) {
-      formatting += `${LogLevel[minimumLevel]} `;
-    }
+    formatting+=prependingString;
     if (prependName) {
-      formatting += `(${componentName}) `;
+      formatting+=`(${componentName}) `;
     }
     if (minimumLevel === LogLevel.FATAL) {
       console.error(formatting, ...loggableItems);
@@ -190,12 +223,12 @@ export class Logger implements ZLUX.Logger {
                          prependName?:boolean, 
                          prependLevel?:boolean,
                          prependProcess?:boolean,
-                         prependUid?:boolean): (x:string,y:LogLevel,z:string) => void {
+                         prependUser?:boolean): (x:string,y:LogLevel,z:string) => void {
     let theLogger:Logger = this;
     return function(componentName:string, minimumLevel:LogLevel, ...loggableItems:any[]){
+      let prependingStrings: string[] = Logger.createPrependingStrings(prependLevel, prependProcess, prependUser);
       if (theLogger.shouldLogInternal(componentName, minimumLevel)){
-        theLogger.consoleLogInternal(componentName,minimumLevel,
-                                     prependDate,prependName,prependLevel,prependProcess,prependUid,
+        theLogger.consoleLogInternal(componentName,minimumLevel,prependingStrings[minimumLevel],prependDate,prependName,
                                      ...loggableItems);
       }
     };
