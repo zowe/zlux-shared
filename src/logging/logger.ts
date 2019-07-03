@@ -117,22 +117,26 @@ export class Logger implements ZLUX.Logger {
   public static FINER: number = LogLevel.FINER;
   public static FINEST: number = LogLevel.TRACE;
   public static TRACE: number = LogLevel.TRACE;
-  private static processId?: number;
+  private static processString: string;
   private static username?: string;
   private static euid?: number;
   private static os?: any;
-  private static timezoneOffsetMs: number;
+  private static offsetMs: number = 0;
+  private static seperator: string = '/';
   
-  constructor(){
+  constructor(offsetMs: number = 0){
     this.configuration = {};
-    Logger.timezoneOffsetMs = new Date().getTimezoneOffset()*60000;
+    Logger.offsetMs = offsetMs;
     this.destinations = new Array<(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void>();    
     this.previousPatterns = new Array<RegExpLevel>();
-    if (!Logger.processId) {
+    if (!Logger.processString) {
       let runningInNode = new Function(`try { return this === global; } catch (error) { return false; }`);
       if (runningInNode()) {
-        Logger.processId = process.pid;
+        Logger.processString = `<ZWED:${process.pid}> `;
         Logger.os = require('os');
+        if (Logger.os.platform() == 'win32') {
+          Logger.seperator = '\\';
+        }
         try {
           Logger.username = Logger.os.userInfo().username;
         } catch (e) {
@@ -142,7 +146,18 @@ export class Logger implements ZLUX.Logger {
             Logger.euid = process.geteuid();
           }
         }
+      } else {
+        //browser has no pid to list
+        Logger.username = "N/A";
+        Logger.processString = `<ZWED:> `;
       }
+    }
+  }
+
+  _setBrowserUsername(username:string) {
+    //browser
+    if (!Logger.os) {
+      Logger.username = username;
     }
   }
 
@@ -162,8 +177,8 @@ export class Logger implements ZLUX.Logger {
                                          prependProcess?: boolean,
                                          prependUser?: boolean): string[] {
     let formatting = '';
-    if (prependProcess && Logger.processId) {
-      formatting += `<ZWED:${Logger.processId}> `;
+    if (prependProcess) {
+      formatting += Logger.processString;
     }
     if (prependUser && Logger.username) {
       formatting += `${Logger.username} `;
@@ -190,7 +205,7 @@ export class Logger implements ZLUX.Logger {
       ];
     }    
   }
-
+  
   private consoleLogInternal(componentName:string,
                              minimumLevel:LogLevel,
                              prependingString:string,
@@ -200,14 +215,44 @@ export class Logger implements ZLUX.Logger {
     var formatting = '';
     if (prependDate) {
       var d = new Date();
-      d.setTime(d.getTime()-Logger.timezoneOffsetMs);
+      d.setTime(d.getTime()-Logger.offsetMs);
       var dateString = d.toISOString();
       dateString = dateString.substring(0,dateString.length-1).replace('T',' ');
       formatting += `${dateString} `;
     }
     formatting+=prependingString;
-    if (prependName) {
-      formatting+=`(${componentName}) `;
+    //Logger.os only present in node
+    //Inspired from https://stackoverflow.com/questions/16697791/nodejs-get-filename-of-caller-function
+    //API def: https://v8.dev/docs/stack-trace-api
+    if (prependName && Logger.os) {
+      let originalFunc = (Error as any).prepareStackTrace;
+      let callerFunction;
+      let callerLine;
+      try {
+        let err:any = new Error();
+
+        (Error as any).prepareStackTrace = function (err: Error, stack: any) {
+          err;
+          return stack;
+        };
+
+        let thisFile = err.stack.shift().getFileName();
+        while (err.stack.length) {
+          let stackEntry = err.stack.shift();
+          callerFunction = stackEntry.getFileName();
+          if (callerFunction && (callerFunction != thisFile)) {
+            callerFunction=callerFunction.substring(callerFunction.lastIndexOf(Logger.seperator)+1);
+            callerLine=stackEntry.getLineNumber();
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn(`Error on stack analysis, ${e}`);
+      }      
+      (Error as any).prepareStackTrace = originalFunc; 
+      formatting+=`(${componentName},${callerFunction}:${callerLine}) `;
+    } else if (prependName) {
+      formatting+=`(${componentName},:) `;
     }
     if (minimumLevel === LogLevel.FATAL) {
       console.error(formatting, ...loggableItems);
@@ -283,8 +328,9 @@ export class Logger implements ZLUX.Logger {
   makeComponentLogger(componentName:string):ComponentLogger{
     let componentLogger:ComponentLogger|undefined = this.componentLoggers.get(componentName);
     if (componentLogger){
-      this.consoleLogInternal("<internal>",LogLevel.WARN,
-                              true,false,true,true,true,
+      this.consoleLogInternal("_internal",LogLevel.WARN,
+                              `${Logger.processString}${Logger.username} ${LogLevel[1]}`,
+                              true,true,
                               'Logger created with identical component name to pre-existing logger. Messages overlap may occur.');
     } else {
       componentLogger = new ComponentLogger(this,componentName);
