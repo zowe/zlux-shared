@@ -55,12 +55,14 @@ export declare class Logger implements ZLUX.Logger {
     static FINER: number;
     static FINEST: number;
     static TRACE: number;
-    private static processId?;
+    private static processString;
     private static username?;
     private static euid?;
     private static os?;
-    private static timezoneOffsetMs;
-    constructor();
+    private static offsetMs;
+    private static seperator;
+    constructor(offsetMs?: number);
+    _setBrowserUsername(username: string): void;
     addDestination(destinationCallback: (componentName: string, minimumLevel: LogLevel, ...loggableItems: any[]) => void): void;
     private shouldLogInternal;
     private static createPrependingStrings;
