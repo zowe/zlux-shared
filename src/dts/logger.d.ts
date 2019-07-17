@@ -9,7 +9,7 @@
   Copyright Contributors to the Zowe Project.
 */
 export declare enum LogLevel {
-    FATAL = 0,
+    CRITICAL = 0,
     WARN = 1,
     INFO = 2,
     DEBUG = 3,
@@ -20,7 +20,7 @@ export declare class ComponentLogger implements ZLUX.ComponentLogger {
     private parentLogger;
     private componentName;
     SEVERE: number;
-    FATAL: number;
+    CRITICAL: number;
     WARN: number;
     WARNING: number;
     INFO: number;
@@ -33,7 +33,7 @@ export declare class ComponentLogger implements ZLUX.ComponentLogger {
     makeSublogger(componentNameSuffix: string): ComponentLogger;
     log(minimumLevel: number, ...loggableItems: any[]): void;
     severe(...loggableItems: any[]): void;
-    fatal(...loggableItems: any[]): void;
+    critical(...loggableItems: any[]): void;
     info(...loggableItems: any[]): void;
     warn(...loggableItems: any[]): void;
     debug(...loggableItems: any[]): void;
@@ -46,7 +46,7 @@ export declare class Logger implements ZLUX.Logger {
     private previousPatterns;
     private knownComponentNames;
     static SEVERE: number;
-    static FATAL: number;
+    static CRITICAL: number;
     static WARNING: number;
     static WARN: number;
     static INFO: number;

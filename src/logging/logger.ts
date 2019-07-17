@@ -22,7 +22,7 @@ declare var process: {pid: number,
 process; /* get rid of TS error */
 
 export enum LogLevel {
-  FATAL,
+  CRITICAL,
   WARN,
   INFO,
   DEBUG,
@@ -34,7 +34,7 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
   private parentLogger:Logger;
   private componentName:string;
   public SEVERE: number;
-  public FATAL: number;
+  public CRITICAL: number;
   public WARN: number;
   public WARNING: number;
   public INFO: number;
@@ -47,8 +47,8 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
   constructor(parentLogger:Logger,componentName:string){
     this.parentLogger = parentLogger;
     this.componentName = componentName;
-    this.FATAL = LogLevel.FATAL;
-    this.SEVERE = LogLevel.FATAL;
+    this.CRITICAL = LogLevel.CRITICAL;
+    this.SEVERE = LogLevel.CRITICAL;
     this.WARNING = LogLevel.WARN;
     this.WARN = LogLevel.WARN;
     this.INFO = LogLevel.INFO;
@@ -68,11 +68,11 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
   }
 
   severe(...loggableItems:any[]):void { 
-    this.parentLogger.log(this.componentName, LogLevel.FATAL, ...loggableItems);
+    this.parentLogger.log(this.componentName, LogLevel.CRITICAL, ...loggableItems);
   }
   
-  fatal(...loggableItems:any[]):void { 
-    this.parentLogger.log(this.componentName, LogLevel.FATAL, ...loggableItems);
+  critical(...loggableItems:any[]):void { 
+    this.parentLogger.log(this.componentName, LogLevel.CRITICAL, ...loggableItems);
   }    
   
   info(...loggableItems:any[]):void { 
@@ -107,8 +107,8 @@ export class Logger implements ZLUX.Logger {
   private componentLoggers:Map<string,ComponentLogger> = new Map();
   private previousPatterns: RegExpLevel[];
   private knownComponentNames:string[] = []; 
-  public static SEVERE: number = LogLevel.FATAL;
-  public static FATAL: number = LogLevel.FATAL;
+  public static SEVERE: number = LogLevel.CRITICAL;
+  public static CRITICAL: number = LogLevel.CRITICAL;
   public static WARNING: number = LogLevel.WARN;
   public static WARN: number = LogLevel.WARN;
   public static INFO: number = LogLevel.INFO;
@@ -254,7 +254,7 @@ export class Logger implements ZLUX.Logger {
     } else if (prependName) {
       formatting+=`(${componentName},:) `;
     }
-    if (minimumLevel === LogLevel.FATAL) {
+    if (minimumLevel === LogLevel.CRITICAL) {
       console.error(formatting, ...loggableItems);
     } else if (minimumLevel === LogLevel.WARN) {
       console.warn(formatting, ...loggableItems);
@@ -299,7 +299,7 @@ export class Logger implements ZLUX.Logger {
   };
 
   setLogLevelForComponentName(componentName:string, level:LogLevel|number):void{
-    if (level >= LogLevel.FATAL && level <= LogLevel.TRACE) {
+    if (level >= LogLevel.CRITICAL && level <= LogLevel.TRACE) {
       this.configuration[componentName] = level;
     }
   }
