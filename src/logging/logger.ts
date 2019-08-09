@@ -118,11 +118,12 @@ export class Logger implements ZLUX.Logger {
   public static FINEST: number = LogLevel.TRACE;
   public static TRACE: number = LogLevel.TRACE;
   private static processString: string;
-  private static username?: string;
+  private static username: string = 'N/A';
   private static euid?: number;
   private static os?: any;
   private static offsetMs: number = 0;
   private static seperator: string = '/';
+  private static useV8Tracing: boolean = false;
   
   constructor(offsetMs: number = 0){
     this.configuration = {};
@@ -132,6 +133,7 @@ export class Logger implements ZLUX.Logger {
     if (!Logger.processString) {
       let runningInNode = new Function(`try { return this === global; } catch (error) { return false; }`);
       if (runningInNode()) {
+        Logger.useV8Tracing = true;
         Logger.processString = `<ZWED:${process.pid}> `;
         Logger.os = require('os');
         if (Logger.os.platform() == 'win32') {
@@ -147,16 +149,19 @@ export class Logger implements ZLUX.Logger {
           }
         }
       } else {
-        //browser has no pid to list
-        Logger.username = "N/A";
         Logger.processString = `<ZWED:> `;
       }
     }
   }
 
+  toggleV8Tracing() {
+    Logger.useV8Tracing = !Logger.useV8Tracing;
+    return Logger.useV8Tracing;
+  }
+
   _setBrowserUsername(username:string) {
-    //browser
-    if (!Logger.os) {
+    //browser check
+    if (!Logger.os && (username.length > 0)) {
       Logger.username = username;
     }
   }
@@ -180,10 +185,12 @@ export class Logger implements ZLUX.Logger {
     if (prependProcess) {
       formatting += Logger.processString;
     }
-    if (prependUser && Logger.username) {
-      formatting += `${Logger.username} `;
-    } else if (prependUser && Logger.euid) {
-      formatting += `${Logger.euid} `;
+    if (prependUser) {
+      if (Logger.username) {
+        formatting += `${Logger.username} `;
+      } else {
+        formatting += `${Logger.euid} `;
+      }
     }
     if (prependLevel) {
         return [
@@ -221,13 +228,13 @@ export class Logger implements ZLUX.Logger {
       formatting += `${dateString} `;
     }
     formatting+=prependingString;
-    //Logger.os only present in node
+    //v8 tracing only intended for v8 browsers & nodejs. Not likely to work elsewhere, so defaults to off for web code.
     //Inspired from https://stackoverflow.com/questions/16697791/nodejs-get-filename-of-caller-function
     //API def: https://v8.dev/docs/stack-trace-api
-    if (prependName && Logger.os) {
+    if (prependName && Logger.useV8Tracing) {
       let originalFunc = (Error as any).prepareStackTrace;
-      let callerFunction;
-      let callerLine;
+      let callerFunction = '';
+      let callerLine = '';
       try {
         let err:any = new Error();
 
@@ -235,15 +242,16 @@ export class Logger implements ZLUX.Logger {
           err;
           return stack;
         };
-
-        let thisFile = err.stack.shift().getFileName();
-        while (err.stack.length) {
-          let stackEntry = err.stack.shift();
-          callerFunction = stackEntry.getFileName();
-          if (callerFunction && (callerFunction != thisFile)) {
-            callerFunction=callerFunction.substring(callerFunction.lastIndexOf(Logger.seperator)+1);
-            callerLine=stackEntry.getLineNumber();
-            break;
+        if (err.stack.shift){
+          let thisFile = err.stack.shift().getFileName();
+          while (err.stack.length) {
+            let stackEntry = err.stack.shift();
+            callerFunction = stackEntry.getFileName();
+            if (callerFunction && (callerFunction != thisFile)) {
+              callerFunction=callerFunction.substring(callerFunction.lastIndexOf(Logger.seperator)+1);
+              callerLine=stackEntry.getLineNumber();
+              break;
+            }
           }
         }
       } catch (e) {
