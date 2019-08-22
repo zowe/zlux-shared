@@ -20,7 +20,8 @@
 declare var process: {pid: number,
                      geteuid: any};
 process; /* get rid of TS error */
-var componentLoggers: Map<string, ComponentLogger>;
+var componentLoggers: Map<string, ComponentLogger>; // Because each componentLogger is accessible through its parent logger at run-time, and componentLoggers 
+// are not truly private with 'private', we use a local variable here to store each of them privately
 
 export enum LogLevel {
   CRITICAL,
