@@ -8,6 +8,8 @@
   	
   Copyright Contributors to the Zowe Project.	
 */
+
+type MessageTable = any;
 export declare enum LogLevel {
     CRITICAL = 0,
     WARN = 1,
@@ -19,7 +21,7 @@ export declare enum LogLevel {
 export declare class ComponentLogger implements ZLUX.ComponentLogger {
     private parentLogger;
     private componentName;
-    MESSAGES: any;
+    private _messages: MessageTable;
     SEVERE: number;
     CRITICAL: number;
     WARN: number;
@@ -30,7 +32,7 @@ export declare class ComponentLogger implements ZLUX.ComponentLogger {
     FINER: number;
     FINEST: number;
     TRACE: number;
-    constructor(parentLogger: Logger, componentName: string);
+    constructor(parentLogger: Logger, componentName: string, messages?: MessageTable);
     makeSublogger(componentNameSuffix: string): ComponentLogger;
     log(minimumLevel: number, ...loggableItems: any[]): void;
     severe(...loggableItems: any[]): void;
@@ -76,8 +78,7 @@ export declare class Logger implements ZLUX.Logger {
     getComponentLevel(componentName: string): LogLevel;
     private noteComponentNameInternal;
     private replayPatternsOnLogger;
-    makeComponentLogger(componentName: string, messages?: any): ComponentLogger;
-    addLoggerMessages(componentName: string, messages: any): void;
+    makeComponentLogger(componentName: string, messages?: MessageTable): ComponentLogger;
 }
  /*	
   This program and the accompanying materials are	

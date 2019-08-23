@@ -22,6 +22,7 @@ declare var process: {pid: number,
 process; /* get rid of TS error */
 var componentLoggers: Map<string, ComponentLogger>; // Because each componentLogger is accessible through its parent logger at run-time, and componentLoggers 
 // are not truly private with 'private', we use a local variable here to store each of them privately
+type MessageTable = any;
 
 export enum LogLevel {
   CRITICAL,
@@ -35,7 +36,7 @@ export enum LogLevel {
 export class ComponentLogger implements ZLUX.ComponentLogger {
   private parentLogger:Logger;
   private componentName:string;
-  public MESSAGES: any;
+  public _messages: MessageTable;
   public SEVERE: number;
   public CRITICAL: number;
   public WARN: number;
@@ -47,7 +48,7 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
   public FINEST: number;
   public TRACE: number;
   
-  constructor(parentLogger:Logger,componentName:string){
+  constructor(parentLogger:Logger, componentName:string, messages?: MessageTable){
     this.parentLogger = parentLogger;
     this.componentName = componentName;
     this.CRITICAL = LogLevel.CRITICAL;
@@ -60,57 +61,65 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
     this.FINER = LogLevel.FINER;
     this.FINEST = LogLevel.TRACE;
     this.TRACE = LogLevel.TRACE;
+    this._messages = messages;
   }
 
   makeSublogger(componentNameSuffix:string): ComponentLogger {
-    return new ComponentLogger(this.parentLogger,this.componentName+':'+componentNameSuffix);
+    return new ComponentLogger(this.parentLogger, this.componentName+':'+componentNameSuffix);
   }
 
   log(minimumLevel:number, ...loggableItems:any[]):void {
-    if (this.MESSAGES && this.MESSAGES[loggableItems[0]]) 
-    { loggableItems[0] = loggableItems[0] + " - " + this.MESSAGES[loggableItems[0]]; }
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
     
     this.parentLogger.log(this.componentName, minimumLevel, ...loggableItems);
   }
 
   severe(...loggableItems:any[]):void { 
-    if (this.MESSAGES && this.MESSAGES[loggableItems[0]]) 
-    { loggableItems[0] = loggableItems[0] + " - " + this.MESSAGES[loggableItems[0]]; }
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
 
     this.parentLogger.log(this.componentName, LogLevel.CRITICAL, ...loggableItems);
   }
   
   critical(...loggableItems:any[]):void { 
-    if (this.MESSAGES && this.MESSAGES[loggableItems[0]]) 
-    { loggableItems[0] = loggableItems[0] + " - " + this.MESSAGES[loggableItems[0]]; }
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
 
     this.parentLogger.log(this.componentName, LogLevel.CRITICAL, ...loggableItems);
   }    
   
   info(...loggableItems:any[]):void { 
-    if (this.MESSAGES && this.MESSAGES[loggableItems[0]]) 
-    { loggableItems[0] = loggableItems[0] + " - " + this.MESSAGES[loggableItems[0]]; }
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
 
     this.parentLogger.log(this.componentName, Logger.INFO, ...loggableItems);
   }
 
   warn(...loggableItems:any[]):void { 
-    if (this.MESSAGES && this.MESSAGES[loggableItems[0]]) 
-    { loggableItems[0] = loggableItems[0] + " - " + this.MESSAGES[loggableItems[0]]; }
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
 
     this.parentLogger.log(this.componentName, Logger.WARN, ...loggableItems);
   }
 
   debug(...loggableItems:any[]):void { 
-    if (this.MESSAGES && this.MESSAGES[loggableItems[0]]) 
-    { loggableItems[0] = loggableItems[0] + " - " + this.MESSAGES[loggableItems[0]]; }
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
 
     this.parentLogger.log(this.componentName, Logger.DEBUG, ...loggableItems);
   }
 
   trace(...loggableItems:any[]):void { 
-    if (this.MESSAGES && this.MESSAGES[loggableItems[0]]) 
-    { loggableItems[0] = loggableItems[0] + " - " + this.MESSAGES[loggableItems[0]]; }
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
 
     this.parentLogger.log(this.componentName, Logger.TRACE, ...loggableItems);
   }  
@@ -357,17 +366,18 @@ export class Logger implements ZLUX.Logger {
     return false;
   }
 
-  makeComponentLogger(componentName:string, messages?: any):ComponentLogger{
+  makeComponentLogger(componentName:string, _messages?: MessageTable):ComponentLogger{
     let componentLogger:ComponentLogger|undefined = componentLoggers.get(componentName);
     if (componentLogger){
       this.consoleLogInternal("_internal",LogLevel.WARN,
                               `${Logger.processString}${Logger.username} ${LogLevel[1]}`,
                               true,true,
-                              'Logger created with identical component name to pre-existing logger. Messages overlap may occur.');
+                              'Logger created with identical component name to pre-existing logger. _messages overlap may occur.');
     } else {
-      componentLogger = new ComponentLogger(this, componentName);
-      if (messages) {
-        componentLogger.MESSAGES = messages;
+      if (_messages) {
+        componentLogger = new ComponentLogger(this, componentName, _messages);
+      } else {
+        componentLogger = new ComponentLogger(this, componentName);
       }
       this.configuration[componentName] = LogLevel.INFO;
       componentLoggers.set(componentName, componentLogger as ComponentLogger);
