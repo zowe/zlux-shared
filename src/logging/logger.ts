@@ -36,7 +36,7 @@ export enum LogLevel {
 export class ComponentLogger implements ZLUX.ComponentLogger {
   private parentLogger:Logger;
   private componentName:string;
-  public _messages: MessageTable;
+  private _messages: MessageTable;
   public SEVERE: number;
   public CRITICAL: number;
   public WARN: number;
@@ -294,6 +294,10 @@ export class Logger implements ZLUX.Logger {
       formatting+=`(${componentName},${callerFunction}:${callerLine}) `;
     } else if (prependName) {
       formatting+=`(${componentName},:) `;
+    }
+    if (loggableItems && (typeof loggableItems[0] == 'string')) {
+      formatting += loggableItems[0];
+      loggableItems.shift();
     }
     if (minimumLevel === LogLevel.CRITICAL) {
       console.error(formatting, ...loggableItems);
