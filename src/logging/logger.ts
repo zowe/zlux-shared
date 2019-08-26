@@ -316,6 +316,10 @@ export class Logger implements ZLUX.Logger {
     return this.configuration[componentName];
   }
 
+  getConfig():any{
+    return this.configuration;
+  }
+
   private noteComponentNameInternal(componentName:string):void{
     if (!this.knownComponentNames.find( (name) => name == componentName)){
       this.knownComponentNames.push(componentName);
