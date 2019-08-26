@@ -1,13 +1,15 @@
 
-/*
-  This program and the accompanying materials are
-  made available under the terms of the Eclipse Public License v2.0 which accompanies
-  this distribution, and is available at https://www.eclipse.org/legal/epl-v20.html
-  
-  SPDX-License-Identifier: EPL-2.0
-  
-  Copyright Contributors to the Zowe Project.
+ /*	
+  This program and the accompanying materials are	
+  made available under the terms of the Eclipse Public License v2.0 which accompanies	
+  this distribution, and is available at https://www.eclipse.org/legal/epl-v20.html	
+  	
+  SPDX-License-Identifier: EPL-2.0	
+  	
+  Copyright Contributors to the Zowe Project.	
 */
+
+type MessageTable = any;
 export declare enum LogLevel {
     CRITICAL = 0,
     WARN = 1,
@@ -19,6 +21,7 @@ export declare enum LogLevel {
 export declare class ComponentLogger implements ZLUX.ComponentLogger {
     private parentLogger;
     private componentName;
+    private _messages: MessageTable;
     SEVERE: number;
     CRITICAL: number;
     WARN: number;
@@ -29,7 +32,7 @@ export declare class ComponentLogger implements ZLUX.ComponentLogger {
     FINER: number;
     FINEST: number;
     TRACE: number;
-    constructor(parentLogger: Logger, componentName: string);
+    constructor(parentLogger: Logger, componentName: string, messages?: MessageTable);
     makeSublogger(componentNameSuffix: string): ComponentLogger;
     log(minimumLevel: number, ...loggableItems: any[]): void;
     severe(...loggableItems: any[]): void;
@@ -42,7 +45,6 @@ export declare class ComponentLogger implements ZLUX.ComponentLogger {
 export declare class Logger implements ZLUX.Logger {
     private destinations;
     private configuration;
-    private componentLoggers;
     private previousPatterns;
     private knownComponentNames;
     static SEVERE: number;
@@ -76,15 +78,14 @@ export declare class Logger implements ZLUX.Logger {
     getComponentLevel(componentName: string): LogLevel;
     private noteComponentNameInternal;
     private replayPatternsOnLogger;
-    makeComponentLogger(componentName: string): ComponentLogger;
+    makeComponentLogger(componentName: string, messages?: MessageTable): ComponentLogger;
 }
-
-/*
-  This program and the accompanying materials are
-  made available under the terms of the Eclipse Public License v2.0 which accompanies
-  this distribution, and is available at https://www.eclipse.org/legal/epl-v20.html
-  
-  SPDX-License-Identifier: EPL-2.0
-  
-  Copyright Contributors to the Zowe Project.
+ /*	
+  This program and the accompanying materials are	
+  made available under the terms of the Eclipse Public License v2.0 which accompanies	
+  this distribution, and is available at https://www.eclipse.org/legal/epl-v20.html	
+  	
+  SPDX-License-Identifier: EPL-2.0	
+  	
+  Copyright Contributors to the Zowe Project.	
 */
