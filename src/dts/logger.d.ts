@@ -76,6 +76,7 @@ export declare class Logger implements ZLUX.Logger {
     setLogLevelForComponentPattern(componentNamePattern: string, level: LogLevel): void;
     setLogLevelForComponentName(componentName: string, level: LogLevel | number): void;
     getComponentLevel(componentName: string): LogLevel;
+    getConfig(): any;
     private noteComponentNameInternal;
     private replayPatternsOnLogger;
     makeComponentLogger(componentName: string, messages?: MessageTable): ComponentLogger;
