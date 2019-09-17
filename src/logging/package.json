@@ -12,6 +12,7 @@
   "devDependencies": {
     "@types/core-js": "~2.5.0",
     "@types/node": "~8.10.23",
+    "@angular/http": "~6.0.9",
     "core-js": "~2.5.7",
     "rxjs": "~6.2.2",
     "rxjs-compat": "~6.2.2",

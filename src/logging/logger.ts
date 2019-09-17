@@ -17,59 +17,112 @@
 // time/data/functionname/linenumber
 // maybe polyfill from https://www.stacktracejs.com/#!/docs/stacktrace-js 
 
+declare var process: {pid: number,
+                     geteuid: any};
+process; /* get rid of TS error */
+var componentLoggers: Map<string, ComponentLogger>; // Because each componentLogger is accessible through its parent logger at run-time, and componentLoggers 
+// are not truly private with 'private', we use a local variable here to store each of them privately
+type MessageTable = any;
+
 export enum LogLevel {
-  SEVERE,
-  WARNING,
+  CRITICAL,
+  WARN,
   INFO,
-  FINE,
+  DEBUG,
   FINER,
-  FINEST,
+  TRACE,
 }
 
 export class ComponentLogger implements ZLUX.ComponentLogger {
   private parentLogger:Logger;
   private componentName:string;
+  private _messages: MessageTable;
   public SEVERE: number;
+  public CRITICAL: number;
+  public WARN: number;
   public WARNING: number;
   public INFO: number;
   public FINE: number;
+  public DEBUG: number;
   public FINER: number;
   public FINEST: number;
+  public TRACE: number;
   
-  constructor(parentLogger:Logger,componentName:string){
+  constructor(parentLogger:Logger, componentName:string, messages?: MessageTable){
     this.parentLogger = parentLogger;
     this.componentName = componentName;
-    this.SEVERE = LogLevel.SEVERE;
-    this.WARNING = LogLevel.WARNING;
+    this.CRITICAL = LogLevel.CRITICAL;
+    this.SEVERE = LogLevel.CRITICAL;
+    this.WARNING = LogLevel.WARN;
+    this.WARN = LogLevel.WARN;
     this.INFO = LogLevel.INFO;
-    this.FINE = LogLevel.FINE;
+    this.FINE = LogLevel.DEBUG;
+    this.DEBUG = LogLevel.DEBUG;    
     this.FINER = LogLevel.FINER;
-    this.FINEST = LogLevel.FINEST;    
+    this.FINEST = LogLevel.TRACE;
+    this.TRACE = LogLevel.TRACE;
+    this._messages = messages;
   }
 
   makeSublogger(componentNameSuffix:string): ComponentLogger {
-    return new ComponentLogger(this.parentLogger,this.componentName+':'+componentNameSuffix);
+    return new ComponentLogger(this.parentLogger, this.componentName+':'+componentNameSuffix);
   }
 
-  log(minimumLevel:number, ...loggableItems:any[]):void { 
+  log(minimumLevel:number, ...loggableItems:any[]):void {
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
+    
     this.parentLogger.log(this.componentName, minimumLevel, ...loggableItems);
   }
 
   severe(...loggableItems:any[]):void { 
-    this.parentLogger.log(this.componentName, LogLevel.SEVERE, ...loggableItems);
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
+
+    this.parentLogger.log(this.componentName, LogLevel.CRITICAL, ...loggableItems);
+  }
+  
+  critical(...loggableItems:any[]):void { 
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
+
+    this.parentLogger.log(this.componentName, LogLevel.CRITICAL, ...loggableItems);
   }    
-      
+  
   info(...loggableItems:any[]):void { 
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
+
     this.parentLogger.log(this.componentName, Logger.INFO, ...loggableItems);
   }
 
   warn(...loggableItems:any[]):void { 
-    this.parentLogger.log(this.componentName, Logger.WARNING, ...loggableItems);
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
+
+    this.parentLogger.log(this.componentName, Logger.WARN, ...loggableItems);
   }
 
   debug(...loggableItems:any[]):void { 
-    this.parentLogger.log(this.componentName, Logger.FINE, ...loggableItems);
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
+
+    this.parentLogger.log(this.componentName, Logger.DEBUG, ...loggableItems);
   }
+
+  trace(...loggableItems:any[]):void { 
+    let firstLoggableItem = loggableItems[0];
+    if (this._messages && this._messages[firstLoggableItem]) 
+    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
+
+    this.parentLogger.log(this.componentName, Logger.TRACE, ...loggableItems);
+  }  
 
 }
 
@@ -84,20 +137,66 @@ class RegExpLevel {
 export class Logger implements ZLUX.Logger {
   private destinations: Array<(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void>;
   private configuration: {[key:string]:LogLevel};
-  private componentLoggers:Map<string,ComponentLogger> = new Map();
   private previousPatterns: RegExpLevel[];
   private knownComponentNames:string[] = []; 
-  public static SEVERE: number = LogLevel.SEVERE;
-  public static WARNING: number = LogLevel.WARNING;
+  public static SEVERE: number = LogLevel.CRITICAL;
+  public static CRITICAL: number = LogLevel.CRITICAL;
+  public static WARNING: number = LogLevel.WARN;
+  public static WARN: number = LogLevel.WARN;
   public static INFO: number = LogLevel.INFO;
-  public static FINE: number = LogLevel.FINE;
+  public static DEBUG: number = LogLevel.DEBUG;
+  public static FINE: number = LogLevel.DEBUG;
   public static FINER: number = LogLevel.FINER;
-  public static FINEST: number = LogLevel.FINEST;
+  public static FINEST: number = LogLevel.TRACE;
+  public static TRACE: number = LogLevel.TRACE;
+  private static processString: string;
+  private static username: string = 'N/A';
+  private static euid?: number;
+  private static os?: any;
+  private static offsetMs: number = 0;
+  private static seperator: string = '/';
+  private static useV8Tracing: boolean = false;
   
-  constructor(){
+  constructor(offsetMs: number = 0){
+    componentLoggers = new Map();
     this.configuration = {};
+    Logger.offsetMs = offsetMs;
     this.destinations = new Array<(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void>();    
-    this.previousPatterns = new Array<RegExpLevel>();    
+    this.previousPatterns = new Array<RegExpLevel>();
+    if (!Logger.processString) {
+      let runningInNode = new Function(`try { return this === global; } catch (error) { return false; }`);
+      if (runningInNode()) {
+        Logger.useV8Tracing = true;
+        Logger.processString = `<ZWED:${process.pid}> `;
+        Logger.os = require('os');
+        if (Logger.os.platform() == 'win32') {
+          Logger.seperator = '\\';
+        }
+        try {
+          Logger.username = Logger.os.userInfo().username;
+        } catch (e) {
+          //OK
+          let platform = Logger.os.platform();
+          if (platform != 'win32' && platform != 'android') {
+            Logger.euid = process.geteuid();
+          }
+        }
+      } else {
+        Logger.processString = `<ZWED:> `;
+      }
+    }
+  }
+
+  toggleV8Tracing() {
+    Logger.useV8Tracing = !Logger.useV8Tracing;
+    return Logger.useV8Tracing;
+  }
+
+  _setBrowserUsername(username:string) {
+    //browser check
+    if (!Logger.os && (username.length > 0)) {
+      Logger.username = username;
+    }
   }
 
   addDestination(destinationCallback:(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void):void {
@@ -112,38 +211,115 @@ export class Logger implements ZLUX.Logger {
     return configuredLevel >= level;
   };
 
-  private consoleLogInternal(componentName:string,
-                           minimumLevel:LogLevel,
-                           prependDate?:boolean,
-                           prependName?:boolean,
-                           prependLevel?:boolean,
-                           ...loggableItems:any[]):void {
-    var formatting = '[';
-    if (prependDate) {
-      var d = new Date();
-      var msOffset = d.getTimezoneOffset()*60000;
-      d.setTime(d.getTime()-msOffset);
-      var dateString = d.toISOString();
-      dateString = dateString.substring(0,dateString.length-1).replace('T',' ');
-      formatting += dateString+ ' ';
+  private static createPrependingStrings(prependLevel?: boolean,
+                                         prependProcess?: boolean,
+                                         prependUser?: boolean): string[] {
+    let formatting = '';
+    if (prependProcess) {
+      formatting += Logger.processString;
     }
-    if (prependName) {
-      formatting += componentName+ ' ';
+    if (prependUser) {
+      if (Logger.username) {
+        formatting += `${Logger.username} `;
+      } else {
+        formatting += `${Logger.euid} `;
+      }
     }
     if (prependLevel) {
-      formatting += LogLevel[minimumLevel];
+        return [
+          `${formatting}${LogLevel[0]} `,
+          `${formatting}${LogLevel[1]} `,
+          `${formatting}${LogLevel[2]} `,
+          `${formatting}${LogLevel[3]} `,
+          `${formatting}${LogLevel[4]} `,
+          `${formatting}${LogLevel[5]} `,
+        ];
+    } else {
+      return [
+        `${formatting} `,
+        `${formatting} `,
+        `${formatting} `,
+        `${formatting} `,
+        `${formatting} `,
+        `${formatting} `,
+      ];
+    }    
+  }
+  
+  private consoleLogInternal(componentName:string,
+                             minimumLevel:LogLevel,
+                             prependingString:string,
+                             prependDate?:boolean,
+                             prependName?:boolean,
+                             ...loggableItems:any[]):void {
+    var formatting = '';
+    if (prependDate) {
+      var d = new Date();
+      d.setTime(d.getTime()-Logger.offsetMs);
+      var dateString = d.toISOString();
+      dateString = dateString.substring(0,dateString.length-1).replace('T',' ');
+      formatting += `${dateString} `;
     }
-    formatting += "] -";
-    console.log(formatting, ...loggableItems);
+    formatting+=prependingString;
+    //v8 tracing only intended for v8 browsers & nodejs. Not likely to work elsewhere, so defaults to off for web code.
+    //Inspired from https://stackoverflow.com/questions/16697791/nodejs-get-filename-of-caller-function
+    //API def: https://v8.dev/docs/stack-trace-api
+    if (prependName && Logger.useV8Tracing) {
+      let originalFunc = (Error as any).prepareStackTrace;
+      let callerFunction = '';
+      let callerLine = '';
+      try {
+        let err:any = new Error();
+
+        (Error as any).prepareStackTrace = function (err: Error, stack: any) {
+          err;
+          return stack;
+        };
+        if (err.stack.shift){
+          let thisFile = err.stack.shift().getFileName();
+          while (err.stack.length) {
+            let stackEntry = err.stack.shift();
+            callerFunction = stackEntry.getFileName();
+            if (callerFunction && (callerFunction != thisFile)) {
+              callerFunction=callerFunction.substring(callerFunction.lastIndexOf(Logger.seperator)+1);
+              callerLine=stackEntry.getLineNumber();
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`Error on stack analysis, ${e}`);
+      }      
+      (Error as any).prepareStackTrace = originalFunc; 
+      formatting+=`(${componentName},${callerFunction}:${callerLine}) `;
+    } else if (prependName) {
+      formatting+=`(${componentName},:) `;
+    }
+    if (loggableItems && (typeof loggableItems[0] == 'string')) {
+      formatting += loggableItems[0];
+      loggableItems.shift();
+    }
+    if (minimumLevel === LogLevel.CRITICAL) {
+      console.error(formatting, ...loggableItems);
+    } else if (minimumLevel === LogLevel.WARN) {
+      console.warn(formatting, ...loggableItems);
+    } else {
+      console.log(formatting, ...loggableItems);
+    }
+
   };
 
   makeDefaultDestination(prependDate?:boolean, 
-                                 prependName?:boolean, 
-                                 prependLevel?:boolean): (x:string,y:LogLevel,z:string) => void {
+                         prependName?:boolean, 
+                         prependLevel?:boolean,
+                         prependProcess?:boolean,
+                         prependUser?:boolean): (x:string,y:LogLevel,z:string) => void {
     let theLogger:Logger = this;
     return function(componentName:string, minimumLevel:LogLevel, ...loggableItems:any[]){
+      let prependingStrings: string[] = Logger.createPrependingStrings(prependLevel, prependProcess, prependUser);
       if (theLogger.shouldLogInternal(componentName, minimumLevel)){
-        theLogger.consoleLogInternal(componentName,minimumLevel,prependDate,prependName,prependLevel,...loggableItems);
+        theLogger.consoleLogInternal(componentName,minimumLevel,prependingStrings[minimumLevel],prependDate,prependName,
+                                     ...loggableItems);
       }
     };
   };
@@ -168,13 +344,17 @@ export class Logger implements ZLUX.Logger {
   };
 
   setLogLevelForComponentName(componentName:string, level:LogLevel|number):void{
-    if (level >= LogLevel.SEVERE && level <= LogLevel.FINEST) {
+    if (level >= LogLevel.CRITICAL && level <= LogLevel.TRACE) {
       this.configuration[componentName] = level;
     }
   }
 
   getComponentLevel(componentName:string):LogLevel{
     return this.configuration[componentName];
+  }
+
+  getConfig():any{
+    return this.configuration;
   }
 
   private noteComponentNameInternal(componentName:string):void{
@@ -194,19 +374,26 @@ export class Logger implements ZLUX.Logger {
     return false;
   }
 
-  makeComponentLogger(componentName:string):ComponentLogger{
-    let componentLogger:ComponentLogger|undefined = this.componentLoggers.get(componentName);
+  makeComponentLogger(componentName:string, _messages?: MessageTable):ComponentLogger{
+    let componentLogger:ComponentLogger|undefined = componentLoggers.get(componentName);
     if (componentLogger){
-      this.consoleLogInternal("<internal>",LogLevel.WARNING,true,false,true,'Logger created with identical component name to pre-existing logger. Messages overlap may occur.');
+      this.consoleLogInternal("_internal",LogLevel.WARN,
+                              `${Logger.processString}${Logger.username} ${LogLevel[1]}`,
+                              true,true,
+                              'Logger created with identical component name to pre-existing logger. _messages overlap may occur.');
     } else {
-      componentLogger = new ComponentLogger(this,componentName);
+      if (_messages) {
+        componentLogger = new ComponentLogger(this, componentName, _messages);
+      } else {
+        componentLogger = new ComponentLogger(this, componentName);
+      }
       this.configuration[componentName] = LogLevel.INFO;
-      this.componentLoggers.set(componentName,componentLogger as ComponentLogger);
+      componentLoggers.set(componentName, componentLogger as ComponentLogger);
       this.replayPatternsOnLogger(componentName);
     }
     return componentLogger;
   }
-  
+
 }
 
 
