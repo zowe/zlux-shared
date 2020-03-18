@@ -1,12 +1,11 @@
+/*
+  This program and the accompanying materials are
+  made available under the terms of the Eclipse Public License v2.0 which accompanies
+  this distribution, and is available at https://www.eclipse.org/legal/epl-v20.html
 
- /*	
-  This program and the accompanying materials are	
-  made available under the terms of the Eclipse Public License v2.0 which accompanies	
-  this distribution, and is available at https://www.eclipse.org/legal/epl-v20.html	
-  	
-  SPDX-License-Identifier: EPL-2.0	
-  	
-  Copyright Contributors to the Zowe Project.	
+  SPDX-License-Identifier: EPL-2.0
+
+  Copyright Contributors to the Zowe Project.
 */
 
 type MessageTable = any;
@@ -22,6 +21,7 @@ export declare class ComponentLogger implements ZLUX.ComponentLogger {
     private parentLogger;
     private componentName;
     private _messages: MessageTable;
+    private _subLoggers;
     SEVERE: number;
     CRITICAL: number;
     WARN: number;
@@ -33,6 +33,7 @@ export declare class ComponentLogger implements ZLUX.ComponentLogger {
     FINEST: number;
     TRACE: number;
     constructor(parentLogger: Logger, componentName: string, messages?: MessageTable);
+    _setMessages(table: MessageTable): void;
     makeSublogger(componentNameSuffix: string): ComponentLogger;
     log(minimumLevel: number, ...loggableItems: any[]): void;
     severe(...loggableItems: any[]): void;
@@ -81,12 +82,3 @@ export declare class Logger implements ZLUX.Logger {
     private replayPatternsOnLogger;
     makeComponentLogger(componentName: string, messages?: MessageTable): ComponentLogger;
 }
- /*	
-  This program and the accompanying materials are	
-  made available under the terms of the Eclipse Public License v2.0 which accompanies	
-  this distribution, and is available at https://www.eclipse.org/legal/epl-v20.html	
-  	
-  SPDX-License-Identifier: EPL-2.0	
-  	
-  Copyright Contributors to the Zowe Project.	
-*/
