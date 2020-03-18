@@ -37,7 +37,7 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
   private componentName:string;
   private _messages: MessageTable;
   //for keeping them in sync
-  private _subLoggers: ComponentLogger[] = [];
+  private _subLoggers: ComponentLogger[];
   public SEVERE: number;
   public CRITICAL: number;
   public WARN: number;
@@ -63,6 +63,7 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
     this.FINEST = LogLevel.TRACE;
     this.TRACE = LogLevel.TRACE;
     this._messages = messages;
+    this._subLoggers = [];
   }
 
   public _setMessages(table: MessageTable) {
@@ -71,8 +72,7 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
   }
 
   makeSublogger(componentNameSuffix:string): ComponentLogger {
-    const subLogger = new ComponentLogger(this.parentLogger, this.componentName+':'+componentNameSuffix);
-    subLogger._messages = this._messages;
+    const subLogger = new ComponentLogger(this.parentLogger, this.componentName+':'+componentNameSuffix, this._messages);
     this._subLoggers.push(subLogger);
     return subLogger;
   }
