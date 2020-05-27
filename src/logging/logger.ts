@@ -280,8 +280,7 @@ export class Logger implements ZLUX.Logger {
       try {
         let err:any = new Error();
 
-        (Error as any).prepareStackTrace = function (err: Error, stack: any) {
-          err;
+        (Error as any).prepareStackTrace = function (_err: Error, stack: any) {
           return stack;
         };
         if (err.stack.shift){
