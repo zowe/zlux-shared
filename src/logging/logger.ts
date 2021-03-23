@@ -159,6 +159,7 @@ export class Logger implements ZLUX.Logger {
   public static FINEST: number = LogLevel.TRACE;
   public static TRACE: number = LogLevel.TRACE;
   private static processString: string;
+  private static processStringPrefix: string;
   private static username: string = 'N/A';
   private static euid?: number;
   private static os?: any;
@@ -172,11 +173,19 @@ export class Logger implements ZLUX.Logger {
     Logger.offsetMs = offsetMs;
     this.destinations = new Array<(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void>();    
     this.previousPatterns = new Array<RegExpLevel>();
-    if (!Logger.processString) {
+    this.updateProcessString();
+  }
+
+  updateProcessString(){
+    let defaultPrefix: string = 'ZWED';
+    if (!Logger.processString || !!Logger.processStringPrefix) {
+      if (Logger.processStringPrefix){
+        defaultPrefix = Logger.processStringPrefix;
+      }
       let runningInNode = new Function(`try { return this === global; } catch (error) { return false; }`);
       if (runningInNode()) {
         Logger.useV8Tracing = true;
-        Logger.processString = `<ZWED:${process.pid}> `;
+        Logger.processString = `<${defaultPrefix}:${process.pid}> `;
         Logger.os = require('os');
         if (Logger.os.platform() == 'win32') {
           Logger.seperator = '\\';
@@ -191,7 +200,7 @@ export class Logger implements ZLUX.Logger {
           }
         }
       } else {
-        Logger.processString = `<ZWED:> `;
+        Logger.processString = `<${defaultPrefix}:> `;
       }
     }
   }
@@ -321,8 +330,13 @@ export class Logger implements ZLUX.Logger {
                          prependName?:boolean, 
                          prependLevel?:boolean,
                          prependProcess?:boolean,
-                         prependUser?:boolean): (x:string,y:LogLevel,z:string) => void {
+                         prependUser?:boolean,
+                         processStringPrefix?:string): (x:string,y:LogLevel,z:string) => void {
     let theLogger:Logger = this;
+    if (processStringPrefix){
+      Logger.processStringPrefix = processStringPrefix;
+      this.updateProcessString();
+    }
     return function(componentName:string, minimumLevel:LogLevel, ...loggableItems:any[]){
       let prependingStrings: string[] = Logger.createPrependingStrings(prependLevel, prependProcess, prependUser);
       if (theLogger.shouldLogInternal(componentName, minimumLevel)){
