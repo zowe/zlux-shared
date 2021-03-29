@@ -57,7 +57,7 @@ export declare class Logger implements ZLUX.Logger {
     private static seperator;
     private static useV8Tracing;
     constructor(offsetMs?: number);
-    updateProcessString(): void;
+    private updateProcessString;
     toggleV8Tracing(): boolean;
     _setBrowserUsername(username: string): void;
     addDestination(destinationCallback: (componentName: string, minimumLevel: LogLevel, ...loggableItems: any[]) => void): void;
