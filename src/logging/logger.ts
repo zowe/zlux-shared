@@ -176,7 +176,7 @@ export class Logger implements ZLUX.Logger {
     this.updateProcessString();
   }
 
-  updateProcessString(){
+  private updateProcessString(){
     let defaultPrefix: string = 'ZWED';
     if (!Logger.processString || !!Logger.processStringPrefix) {
       if (Logger.processStringPrefix){
