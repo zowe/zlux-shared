@@ -1,14 +1,4 @@
-/*
-  This program and the accompanying materials are
-  made available under the terms of the Eclipse Public License v2.0 which accompanies
-  this distribution, and is available at https://www.eclipse.org/legal/epl-v20.html
-
-  SPDX-License-Identifier: EPL-2.0
-
-  Copyright Contributors to the Zowe Project.
-*/
-
-type MessageTable = any;
+declare type MessageTable = any;
 export declare enum LogLevel {
     CRITICAL = 0,
     WARN = 1,
@@ -20,7 +10,7 @@ export declare enum LogLevel {
 export declare class ComponentLogger implements ZLUX.ComponentLogger {
     private parentLogger;
     private componentName;
-    private _messages: MessageTable;
+    private _messages;
     private _subLoggers;
     SEVERE: number;
     CRITICAL: number;
@@ -59,6 +49,7 @@ export declare class Logger implements ZLUX.Logger {
     static FINEST: number;
     static TRACE: number;
     private static processString;
+    private static processStringPrefix;
     private static username;
     private static euid?;
     private static os?;
@@ -66,13 +57,14 @@ export declare class Logger implements ZLUX.Logger {
     private static seperator;
     private static useV8Tracing;
     constructor(offsetMs?: number);
+    private updateProcessString;
     toggleV8Tracing(): boolean;
     _setBrowserUsername(username: string): void;
     addDestination(destinationCallback: (componentName: string, minimumLevel: LogLevel, ...loggableItems: any[]) => void): void;
     private shouldLogInternal;
     private static createPrependingStrings;
     private consoleLogInternal;
-    makeDefaultDestination(prependDate?: boolean, prependName?: boolean, prependLevel?: boolean, prependProcess?: boolean, prependUser?: boolean): (x: string, y: LogLevel, z: string) => void;
+    makeDefaultDestination(prependDate?: boolean, prependName?: boolean, prependLevel?: boolean, prependProcess?: boolean, prependUser?: boolean, processStringPrefix?: string): (x: string, y: LogLevel, z: string) => void;
     log(componentName: string, minimumLevel: LogLevel, ...loggableItems: any[]): void;
     setLogLevelForComponentPattern(componentNamePattern: string, level: LogLevel): void;
     setLogLevelForComponentName(componentName: string, level: LogLevel | number): void;
@@ -80,5 +72,6 @@ export declare class Logger implements ZLUX.Logger {
     getConfig(): any;
     private noteComponentNameInternal;
     private replayPatternsOnLogger;
-    makeComponentLogger(componentName: string, messages?: MessageTable): ComponentLogger;
+    makeComponentLogger(componentName: string, _messages?: MessageTable): ComponentLogger;
 }
+export {};
