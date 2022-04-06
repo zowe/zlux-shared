@@ -1,9 +1,12 @@
 {
   "identifier": "org.zowe.zlux.logger",
-  "apiVersion": "1.0.0",
+  "apiVersion": "2.0.0",
   "pluginVersion": "0.9.0",
+  "license": "EPL-2.0",
+  "author": "Zowe",
+  "homepage": "https://github.com/zowe/zlux-shared",
   "pluginType": "library",
-  "libraryName": "Rocket Common Logger",
+  "libraryName": "Zowe Common Logger",
   "libraryVersion": "0.9.0",
   "configurationData": {
     "resources": {
