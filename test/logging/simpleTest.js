@@ -9,6 +9,69 @@
   Copyright Contributors to the Zowe Project.
 */
 const logModule = require('../../src/logging/logger.js');
+const assert = require('assert');
+const sinon = require('../../src/logging/node_modules/sinon'); // Sinon is a library for spies, stubs, and mocks
+
+/* ------- The test checks --------- */
+
+describe('Logger Tests', function() {
+  let warnSpy;
+  let infoSpy;
+  let logger = new logModule.Logger();
+  logger.addDestination(logger.makeDefaultDestination(true,true,true,true,true,"Test the logger"));
+
+  beforeEach(function() { // Intercept console.log calls
+    warnSpy = sinon.spy(console, 'warn');
+    infoSpy = sinon.spy(console, 'log');
+  });
+
+  afterEach(function() { // Restore the original console.log function
+    warnSpy.restore();
+    infoSpy.restore();
+  });
+
+  it('should warn about duplicate component names', function() {
+    testDuplicate(logger);
+    assert(warnSpy.calledWithMatch(/Logger created with identical component name/)); // Check if the expected message was logged
+  });
+
+  it('should log informational messages correctly', function() {
+    testInfo(logger);
+    assert(infoSpy.calledWithMatch(/FYI this worked/));
+  });
+
+  it('should correctly log messages with various arguments', function() {
+    testArguments(logger);
+    
+    function argsToString(args) {
+      return args.map(callArgs => 
+          callArgs.map(arg => {
+              if (typeof arg === 'function') {
+                  // Convert function to a string representation
+                  return '[Function: ' + (arg.name || 'anonymous') + ']';
+              } else if (typeof arg === 'object') {
+                  // Convert object to a JSON string
+                  try {
+                      return JSON.stringify(arg);
+                  } catch (error) {
+                      return '[Circular]';
+                  }
+              } else {
+                  // Convert other types directly to string
+                  return String(arg);
+              }
+          }).join(' ') // Join all arguments of a call into a single string
+      ).join('\n'); // Join all calls into a single string, separated by new lines
+  }
+  
+  const allArgsAsString = argsToString(infoSpy.args);
+  assert(/Look at my string here it is , and my int 45 , and my boolean true/.test(allArgsAsString));
+  assert(/\[Function: myfunction\]/.test(allArgsAsString));
+  assert(/and finally my object {"message":"this should look familiar"/.test(allArgsAsString));
+  });
+});
+
+/* ------- The test actions  --------- */
 
 function testDuplicate(logger) {
   logger.makeComponentLogger('foo');
@@ -55,14 +118,10 @@ function testArguments(logger) {
 }
 
 function runTests() {
-  let logger = new logModule.Logger();
-  logger.addDestination(logger.makeDefaultDestination(true,true,true,true,true,"Test the logger"));
   testDuplicate(logger);
   testInfo(logger);
   testArguments(logger);
 }
-
-runTests();
 
 /*
   This program and the accompanying materials are
