@@ -67,7 +67,7 @@ describe('Logger Tests', function() {
   const allArgsAsString = argsToString(infoSpy.args);
   assert(/Look at my string here it is , and my int 45 , and my boolean true/.test(allArgsAsString));
   assert(/\[Function: myfunction\]/.test(allArgsAsString));
-  assert(/and finally my object {"message":"this should look familiar"/.test(allArgsAsString));
+  assert(/and finally my object {"message":"this should look familiar","mystring":"here it is","myint":45,"myboolean":true}/.test(allArgsAsString));
   });
 });
 
