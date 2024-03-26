@@ -17,9 +17,7 @@
     "mocha": "~10.3.0",
     "rxjs": "~7.4.0",
     "sinon": "~17.0.1",
-    "typescript": "~4.2.0"
-  },
-  "dependencies": {
-    "nyc": "^15.1.0"
+    "typescript": "~4.2.0",
+    "nyc": "~15.1.0"
   }
 }
