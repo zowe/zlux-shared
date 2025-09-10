@@ -27,18 +27,10 @@ jobs:
 
       - name: SonarQube Scan
         continue-on-error: false
-        uses: sonarsource/sonarqube-scan-action@v5
+        uses: sonarsource/sonarcloud-github-action@master
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=zowe_zlux-shared
-            -Dsonar.organization=zowe
-            -Dsonar.sources=src
-            -Dsonar.tests=src
-            -Dsonar.test.inclusions=**/*.spec.ts,**/*.test.ts,**/*.spec.tsx,**/*.test.tsx,**/*.spec.js,**/*.test.js,**/*.spec.jsx,**/*.test.jsx
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
-            -Dsonar.javascript.lcov.reportPaths=src/coverage/lcov.info
-            -Dsonar.qualitygate.wait=true
-            -Dsonar.qualitygate.timeout=600
+          SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
+          sonar.projectVersion: ${{ env.P_VERSION }}
+          sonar.links.ci: 'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'
