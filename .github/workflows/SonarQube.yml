@@ -36,7 +36,7 @@ jobs:
             -Dsonar.projectKey=zowe_zlux-shared
             -Dsonar.organization=zowe
             -Dsonar.sources=src
-            -Dsonar.tests=src
+            -Dsonar.tests=test/
             -Dsonar.branch.name=v3.x/staging
             -Dsonar.test.inclusions=**/*.spec.ts,**/*.test.ts,**/*.spec.tsx,**/*.test.tsx,**/*.spec.js,**/*.test.js,**/*.spec.jsx,**/*.test.jsx
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
