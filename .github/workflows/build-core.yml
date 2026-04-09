@@ -10,9 +10,7 @@ on:
 jobs:
   build-core:
     uses: zowe/zlux-build/.github/workflows/build-core.yml@users/jstruga/add-trigger-option
-    secrets:
-      SSH_MARIST_USERNAME: ${{ secrets.SSH_MARIST_USERNAME }}
-      SSH_MARIST_RACF_PASSWORD: ${{ secrets.SSH_MARIST_RACF_PASSWORD }}
+    secrets: inherit
     with:
       SOURCE_REPO: zlux-platform
       SOURCE_PR: ${{ github.event.pull_request.number || '' }}
