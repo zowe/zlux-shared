@@ -1,0 +1,28 @@
+{
+  "compileOnSave": true,
+  "include": [
+    "./*.ts"
+  ],
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "../dts",
+    "sourceMap": true,
+    "moduleResolution": "node",
+    "module": "commonjs",
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "strictNullChecks": true,
+    "skipLibCheck": true,
+    "target": "es2017",
+    "lib": [
+      "es2017",
+      "dom"
+    ],
+    "typeRoots": [
+      "node_modules/@types"
+    ]
+  }
+}
