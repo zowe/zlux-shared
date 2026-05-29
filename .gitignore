@@ -7,6 +7,34 @@
 # Copyright Contributors to the Zowe Project.
 
 src/logging/logger.j*
+src/codepage/*.js
+
+# dependencies
+/node_modules
+*/node_modules
+node_modules
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+#emacs
+**/*~
+**/#*#
+**/.#*
+
+# Typescript output
+**/*.js.map
+
+# System Files
+.DS_Store
+Thumbs.db
+
 
 # This program and the accompanying materials are
 # made available under the terms of the Eclipse Public License v2.0 which accompanies
