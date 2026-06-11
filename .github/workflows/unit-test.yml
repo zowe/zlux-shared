@@ -22,6 +22,10 @@ jobs:
       - name: Install dependencies
         working-directory: src/logging
         run: npm ci
+      - name: Build TypeScript
+        run: |
+          cd src/logging && npx tsc
+          cd ../../src/obfuscator && npx -p typescript tsc --module commonjs --moduleResolution node --declaration --outDir . --skipLibCheck htmlObfuscator.ts
       - name: Run tests with coverage
         working-directory: src/logging
         run: npm run test:coverage
