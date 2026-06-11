@@ -27,10 +27,10 @@ jobs:
           cd src/logging
           # Create stub for ZLUX namespace (defined in zlux-platform, not available in test-only CI)
           echo 'declare namespace ZLUX { interface ComponentLogger {} interface Logger {} }' > zlux-stub.d.ts
-          npx tsc --skipLibCheck --declaration --module commonjs --target es5 --moduleResolution node --outDir . --types node,core-js --esModuleInterop zlux-stub.d.ts logger.ts
+          ./node_modules/.bin/tsc --skipLibCheck --declaration --module commonjs --target es5 --moduleResolution node --outDir . --types node,core-js --esModuleInterop zlux-stub.d.ts logger.ts
           rm zlux-stub.d.ts
           cd ../../src/obfuscator
-          npx -p typescript tsc --module commonjs --moduleResolution node --declaration --outDir . --skipLibCheck htmlObfuscator.ts
+          ../logging/node_modules/.bin/tsc --module commonjs --moduleResolution node --declaration --outDir . --skipLibCheck htmlObfuscator.ts
       - name: Run tests with coverage
         working-directory: src/logging
         run: npm run test:coverage
