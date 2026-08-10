@@ -1,0 +1,42 @@
+name: Run Unit Tests
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches:
+      - v3.x/staging
+      - users/*/unit-test
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install dependencies
+        working-directory: src/logging
+        run: npm ci
+      - name: Build TypeScript
+        run: |
+          cd src/logging
+          # Create stub for ZLUX namespace (defined in zlux-platform, not available in test-only CI)
+          echo 'declare namespace ZLUX { interface ComponentLogger {} interface Logger {} }' > zlux-stub.d.ts
+          ./node_modules/.bin/tsc --skipLibCheck --declaration --module commonjs --target es5 --moduleResolution node --outDir . --types node,core-js --esModuleInterop zlux-stub.d.ts logger.ts
+          rm zlux-stub.d.ts
+          cd ../../src/obfuscator
+          ../logging/node_modules/.bin/tsc --module commonjs --moduleResolution node --declaration --outDir . --skipLibCheck htmlObfuscator.ts
+      - name: Run tests with coverage
+        working-directory: src/logging
+        run: npm run test:coverage
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-node${{ matrix.node-version }}
+          path: src/logging/coverage/
