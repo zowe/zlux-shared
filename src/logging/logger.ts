@@ -77,60 +77,49 @@ export class ComponentLogger implements ZLUX.ComponentLogger {
     return subLogger;
   }
 
+  /**
+   * Expands a message ID into "<id> - <message table text>" when the first loggable
+   * item names an entry in this logger's message table.
+   *
+   * The lookup is restricted to own properties so that inherited Object members
+   * ('constructor', 'toString', ...) cannot be mistaken for message definitions.
+   */
+  private applyMessageTable(loggableItems:any[]):any[] {
+    const firstLoggableItem = loggableItems[0];
+    if (this._messages
+        && Object.prototype.hasOwnProperty.call(this._messages, firstLoggableItem)
+        && this._messages[firstLoggableItem]) {
+      loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem];
+    }
+    return loggableItems;
+  }
+
   log(minimumLevel:number, ...loggableItems:any[]):void {
-    let firstLoggableItem = loggableItems[0];
-    if (this._messages && this._messages[firstLoggableItem]) 
-    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
-    
-    this.parentLogger.log(this.componentName, minimumLevel, ...loggableItems);
+    this.parentLogger.log(this.componentName, minimumLevel, ...this.applyMessageTable(loggableItems));
   }
 
   severe(...loggableItems:any[]):void { 
-    let firstLoggableItem = loggableItems[0];
-    if (this._messages && this._messages[firstLoggableItem]) 
-    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
-
-    this.parentLogger.log(this.componentName, LogLevel.CRITICAL, ...loggableItems);
+    this.parentLogger.log(this.componentName, LogLevel.CRITICAL, ...this.applyMessageTable(loggableItems));
   }
   
   critical(...loggableItems:any[]):void { 
-    let firstLoggableItem = loggableItems[0];
-    if (this._messages && this._messages[firstLoggableItem]) 
-    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
-
-    this.parentLogger.log(this.componentName, LogLevel.CRITICAL, ...loggableItems);
+    this.parentLogger.log(this.componentName, LogLevel.CRITICAL, ...this.applyMessageTable(loggableItems));
   }    
   
   info(...loggableItems:any[]):void { 
-    let firstLoggableItem = loggableItems[0];
-    if (this._messages && this._messages[firstLoggableItem]) 
-    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
-
-    this.parentLogger.log(this.componentName, Logger.INFO, ...loggableItems);
+    this.parentLogger.log(this.componentName, Logger.INFO, ...this.applyMessageTable(loggableItems));
   }
 
   warn(...loggableItems:any[]):void { 
-    let firstLoggableItem = loggableItems[0];
-    if (this._messages && this._messages[firstLoggableItem]) 
-    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
-
-    this.parentLogger.log(this.componentName, Logger.WARN, ...loggableItems);
+    this.parentLogger.log(this.componentName, Logger.WARN, ...this.applyMessageTable(loggableItems));
   }
 
   debug(...loggableItems:any[]):void { 
-    let firstLoggableItem = loggableItems[0];
-    if (this._messages && this._messages[firstLoggableItem]) 
-    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
-
-    this.parentLogger.log(this.componentName, Logger.DEBUG, ...loggableItems);
+    this.parentLogger.log(this.componentName, Logger.DEBUG, ...this.applyMessageTable(loggableItems));
   }
 
   trace(...loggableItems:any[]):void { 
-    let firstLoggableItem = loggableItems[0];
-    if (this._messages && this._messages[firstLoggableItem]) 
-    { loggableItems[0] = firstLoggableItem + " - " + this._messages[firstLoggableItem]; }
-
-    this.parentLogger.log(this.componentName, Logger.TRACE, ...loggableItems);
+    this.parentLogger.log(this.componentName, Logger.TRACE, ...this.applyMessageTable(loggableItems));
   }  
 
 }
@@ -166,6 +155,20 @@ export class Logger implements ZLUX.Logger {
   private static offsetMs: number = 0;
   private static seperator: string = '/';
   private static useV8Tracing: boolean = false;
+  private static nodeUtil: any;
+  /**
+   * C0 control characters plus DEL, excluding TAB (\x09) and LF (\x0A).
+   * Escaping these stops ANSI/terminal escape sequences and lone CRs from reaching
+   * an operator's terminal or overwriting part of a written record.
+   */
+  private static controlCharacters: RegExp = /[\x00-\x08\x0B-\x1F\x7F]/g;
+  /**
+   * Prepended to every continuation line of a record. Log readers - including the
+   * Zowe service logging standard in zowe-install-packaging bin/libs/common - treat
+   * a line as a new, already-formatted record only when it begins with a timestamp.
+   * Marking continuations keeps multi-line output attached to its own header.
+   */
+  private static continuationPrefix: string = '  | ';
   
   constructor(offsetMs: number = 0){
     componentLoggers = new Map();
@@ -187,6 +190,16 @@ export class Logger implements ZLUX.Logger {
         Logger.useV8Tracing = true;
         Logger.processString = `<${defaultPrefix}:${process.pid}> `;
         Logger.os = require('os');
+        //Resolved through a variable so bundlers do not record 'util' as a static
+        //dependency. A browser bundle would otherwise have to declare a stub for it
+        //(resolve.fallback), which would mean changing every consumer's build config;
+        //this branch never runs outside node in any case. Validated at the point of
+        //use in formatLoggableItems.
+        //Browser bundles resolve this to an empty stub (resolve.fallback), so the
+        //result is validated at the point of use in formatLoggableItems rather than
+        //trusted here. This branch only runs under node.
+        Logger.nodeUtil = require('util');
+
         if (Logger.os.platform() == 'win32') {
           Logger.seperator = '\\';
         }
@@ -264,6 +277,94 @@ export class Logger implements ZLUX.Logger {
     }    
   }
   
+  /**
+   * Replaces control characters with printable escapes, leaving TAB and LF intact.
+   * LF is preserved here so that legitimately multi-line content (message table
+   * entries, error stacks) still renders across lines; it is neutralized later by
+   * the continuation prefix applied to the finished record.
+   */
+  private static escapeControlCharacters(text: string): string {
+    return text.replace(/\r\n/g, '\n').replace(Logger.controlCharacters, function(character: string): string {
+      const code: number = character.charCodeAt(0);
+      return '\\x' + (code < 16 ? '0' : '') + code.toString(16).toUpperCase();
+    });
+  }
+
+  private static sanitizeLoggableItem(item: any): any {
+    return (typeof item === 'string') ? Logger.escapeControlCharacters(item) : item;
+  }
+
+  /**
+   * Sanitizes a value used inside the record prefix. Component names can come from
+   * request parameters, so they must not be able to introduce line breaks.
+   */
+  private static sanitizeToken(text: string): string {
+    return Logger.escapeControlCharacters(String(text)).replace(/\n/g, '\\n');
+  }
+
+  private static stringifyValue(value: any): string {
+    if (value instanceof Error) {
+      return value.stack ? value.stack : `${value.name}: ${value.message}`;
+    }
+    try {
+      const serialized = JSON.stringify(value);
+      return (serialized === undefined) ? String(value) : serialized;
+    } catch (e) {
+      return String(value);
+    }
+  }
+
+  /**
+   * Minimal util.format stand-in for browsers, where the node 'util' module is absent.
+   */
+  private static formatWithoutNode(loggableItems: any[]): string {
+    if (loggableItems.length === 0) {
+      return '';
+    }
+    let output: string;
+    let nextIndex: number = 0;
+    if (typeof loggableItems[0] === 'string') {
+      nextIndex = 1;
+      output = loggableItems[0].replace(/%[sdifjoO%]/g, function(directive: string): string {
+        if (directive === '%%') {
+          return '%';
+        }
+        if (nextIndex >= loggableItems.length) {
+          return directive;
+        }
+        const value: any = loggableItems[nextIndex++];
+        switch (directive) {
+          case '%d':
+          case '%i':
+            return String(parseInt(value, 10));
+          case '%f':
+            return String(parseFloat(value));
+          case '%s':
+            return (typeof value === 'string') ? value : Logger.stringifyValue(value);
+          default:
+            return Logger.stringifyValue(value);
+        }
+      });
+    } else {
+      output = '';
+    }
+    for (let i = nextIndex; i < loggableItems.length; i++) {
+      const value: any = loggableItems[i];
+      const rendered: string = (typeof value === 'string') ? value : Logger.stringifyValue(value);
+      output += (output.length ? ' ' : '') + rendered;
+    }
+    return output;
+  }
+
+  private static formatLoggableItems(loggableItems: any[]): string {
+    //Checked per call rather than assumed: a browser bundle resolves 'util' to an
+    //empty stub, and treating that as usable would throw on every log call.
+    if (Logger.nodeUtil && (typeof Logger.nodeUtil.format === 'function')) {
+      return Logger.nodeUtil.format(...loggableItems);
+    }
+    return Logger.formatWithoutNode(loggableItems);
+  }
+
   private consoleLogInternal(componentName:string,
                              minimumLevel:LogLevel,
                              prependingString:string,
@@ -308,20 +409,27 @@ export class Logger implements ZLUX.Logger {
         console.warn(`Error on stack analysis, ${e}`);
       }      
       (Error as any).prepareStackTrace = originalFunc; 
-      formatting+=`(${componentName},${callerFunction}:${callerLine}) `;
+      formatting+=`(${Logger.sanitizeToken(componentName)},${Logger.sanitizeToken(callerFunction)}:${Logger.sanitizeToken(callerLine)}) `;
     } else if (prependName) {
-      formatting+=`(${componentName},:) `;
+      formatting+=`(${Logger.sanitizeToken(componentName)},:) `;
     }
-    if (loggableItems && (typeof loggableItems[0] == 'string')) {
-      formatting += loggableItems[0];
-      loggableItems.shift();
-    }
+    //Render the record here rather than handing console.* a template plus trailing
+    //arguments. This yields the whole record so continuation marking can be applied
+    //below, and keeps the prefix - which carries user and component names - out of
+    //the format template.
+    //Note: a directive inside the first loggable item is still part of the template.
+    //Call sites should pass variable data as an argument rather than building it
+    //into that item.
+    const message = Logger.formatLoggableItems((loggableItems || []).map(Logger.sanitizeLoggableItem));
+    //Mark continuation lines so an embedded newline cannot produce a line that
+    //reads as an independent, correctly-prefixed record.
+    const record = (formatting + message).replace(/\n/g, '\n' + Logger.continuationPrefix);
     if (minimumLevel === LogLevel.CRITICAL) {
-      console.error(formatting, ...loggableItems);
+      console.error(record);
     } else if (minimumLevel === LogLevel.WARN) {
-      console.warn(formatting, ...loggableItems);
+      console.warn(record);
     } else {
-      console.log(formatting, ...loggableItems);
+      console.log(record);
     }
 
   };
