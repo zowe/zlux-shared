@@ -75,7 +75,7 @@ export declare class Logger implements ZLUX.Logger {
      * Prepended to every continuation line of a record. Log readers - including the
      * Zowe service logging standard in zowe-install-packaging bin/libs/common - treat
      * a line as a new, already-formatted record only when it begins with a timestamp.
-     * Marking continuations guarantees no embedded newline can forge a record.
+     * Marking continuations keeps multi-line output attached to its own header.
      */
     private static continuationPrefix;
     constructor(offsetMs?: number);

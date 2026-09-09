@@ -166,7 +166,7 @@ export class Logger implements ZLUX.Logger {
    * Prepended to every continuation line of a record. Log readers - including the
    * Zowe service logging standard in zowe-install-packaging bin/libs/common - treat
    * a line as a new, already-formatted record only when it begins with a timestamp.
-   * Marking continuations guarantees no embedded newline can forge a record.
+   * Marking continuations keeps multi-line output attached to its own header.
    */
   private static continuationPrefix: string = '  | ';
   
@@ -415,13 +415,14 @@ export class Logger implements ZLUX.Logger {
     }
     //Render the record here rather than handing console.* a template plus trailing
     //arguments. This yields the whole record so continuation marking can be applied
-    //below, and keeps the prefix - which carries user and component names - from ever
-    //being read as a format template (MVD-7855).
-    //Note: a directive inside the first loggable item is still a template. Call sites
-    //must not interpolate untrusted data into it; pass it as an argument instead.
+    //below, and keeps the prefix - which carries user and component names - out of
+    //the format template.
+    //Note: a directive inside the first loggable item is still part of the template.
+    //Call sites should pass variable data as an argument rather than building it
+    //into that item.
     const message = Logger.formatLoggableItems((loggableItems || []).map(Logger.sanitizeLoggableItem));
-    //Mark continuation lines so that no embedded newline can produce a line that
-    //looks like an independent, correctly-prefixed log record.
+    //Mark continuation lines so an embedded newline cannot produce a line that
+    //reads as an independent, correctly-prefixed record.
     const record = (formatting + message).replace(/\n/g, '\n' + Logger.continuationPrefix);
     if (minimumLevel === LogLevel.CRITICAL) {
       console.error(record);

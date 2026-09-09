@@ -67,7 +67,7 @@ describe('Logger Tests', function() {
   const allArgsAsString = argsToString(infoSpy.args);
   assert(/Look at my string here it is , and my int 45 , and my boolean true/.test(allArgsAsString));
   assert(/\[Function: myfunction\]/.test(allArgsAsString));
-  /* Since MVD-7855 the logger renders the record itself and hands console a single
+  /* The logger renders the record itself and hands console a single
      string, so trailing objects arrive here already inspected rather than live. The
      bytes written to the log are unchanged - this is the same util.inspect rendering
      console would have produced - but the assertion can no longer rely on the helper
@@ -80,15 +80,15 @@ describe('Logger Tests', function() {
   });
 });
 
-/* ------- MVD-7855: log injection / forging regression tests --------- */
+/* ------- record formatting regression tests --------- */
 
-describe('Logger log injection (MVD-7855)', function() {
+describe('Logger record formatting', function() {
   /* A record always begins with a timestamp; log readers, including the Zowe service
      logging standard in zowe-install-packaging bin/libs/common, rely on that to tell
-     a new record from a continuation. No attacker-supplied text may produce a line
-     that matches this at column 0. */
+     a new record from a continuation. Only a real record may match this at
+     column 0. */
   const RECORD_START = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/;
-  const FORGED = '\n2026-01-01 00:00:00.000 <ZWED:1> zwesvusr INFO (a,b:1) User=admin: login SUCCESS';
+  const EMBEDDED_RECORD = '\n2026-01-01 00:00:00.000 <ZWED:1> zwesvusr INFO (a,b:1) User=admin: login SUCCESS';
 
   let logSpy;
   let warnSpy;
@@ -113,24 +113,24 @@ describe('Logger log injection (MVD-7855)', function() {
     return linesOf(spy).filter((line, index) => index > 0);
   }
 
-  it('does not let a CR-LF in the first loggable item forge a record', function() {
-    logger.makeComponentLogger('injectFirstItem').info(`User bob${FORGED}, denied`);
-    const forged = continuationLines(logSpy).filter(line => RECORD_START.test(line));
-    assert.strictEqual(forged.length, 0, 'attacker text produced a forged record: ' + forged);
+  it('marks an embedded newline in the first loggable item as a continuation', function() {
+    logger.makeComponentLogger('firstItemNewline').info(`User bob${EMBEDDED_RECORD}, denied`);
+    const unmarked = continuationLines(logSpy).filter(line => RECORD_START.test(line));
+    assert.strictEqual(unmarked.length, 0, 'text produced an unmarked record line: ' + unmarked);
   });
 
-  it('does not let a CR-LF in a substituted argument forge a record', function() {
-    // The message-ID style used across zlux-server-framework: the template is trusted,
-    // the substituted value is not.
-    logger.makeComponentLogger('injectArgument').info('User=%s called %s', 'dave', `/ok${FORGED}`);
-    const forged = continuationLines(logSpy).filter(line => RECORD_START.test(line));
-    assert.strictEqual(forged.length, 0, 'attacker argument produced a forged record: ' + forged);
+  it('marks an embedded newline in a substituted argument as a continuation', function() {
+    // The message-ID style used across zlux-server-framework: the template is fixed,
+    // the substituted value is variable.
+    logger.makeComponentLogger('argumentNewline').info('User=%s called %s', 'dave', `/ok${EMBEDDED_RECORD}`);
+    const unmarked = continuationLines(logSpy).filter(line => RECORD_START.test(line));
+    assert.strictEqual(unmarked.length, 0, 'argument produced an unmarked record line: ' + unmarked);
   });
 
-  it('does not let a component name inject a line break into the record prefix', function() {
-    logger.makeComponentLogger(`evil${FORGED}`).info('hello');
-    const forged = continuationLines(logSpy).filter(line => RECORD_START.test(line));
-    assert.strictEqual(forged.length, 0, 'component name produced a forged record: ' + forged);
+  it('keeps a line break in a component name out of the record prefix', function() {
+    logger.makeComponentLogger(`component${EMBEDDED_RECORD}`).info('hello');
+    const unmarked = continuationLines(logSpy).filter(line => RECORD_START.test(line));
+    assert.strictEqual(unmarked.length, 0, 'component name produced an unmarked record line: ' + unmarked);
   });
 
   it('escapes ANSI and other control characters', function() {
@@ -186,13 +186,13 @@ describe('Logger log injection (MVD-7855)', function() {
       logModule.Logger.nodeUtil = savedNodeUtil;
     });
 
-    it('substitutes directives and escapes injected newlines', function() {
+    it('substitutes directives and marks embedded newlines', function() {
       logger.makeComponentLogger('browserSubstitution')
-        .info('User=%s called %s', 'dave', `/ok${FORGED}`);
+        .info('User=%s called %s', 'dave', `/ok${EMBEDDED_RECORD}`);
       const lines = linesOf(logSpy);
       assert(/User=dave called \/ok/.test(lines[0]), 'substitution failed: ' + lines[0]);
-      const forged = lines.filter((line, index) => index > 0 && RECORD_START.test(line));
-      assert.strictEqual(forged.length, 0, 'attacker argument produced a forged record: ' + forged);
+      const unmarked = lines.filter((line, index) => index > 0 && RECORD_START.test(line));
+      assert.strictEqual(unmarked.length, 0, 'argument produced an unmarked record line: ' + unmarked);
     });
 
     it('renders %% literally and appends unmatched arguments', function() {
