@@ -10,6 +10,17 @@
   Copyright Contributors to the Zowe Project.
 */
 
+const HTML_ENTITY_MAP: { [char: string]: string } = {
+  '&': '&#38;',
+  '<': '&#60;',
+  '>': '&#62;',
+  '"': '&#34;',
+  "'": '&#39;',
+  '/': '&#47;',
+};
+
+const HTML_ENTITY_REGEX = /[&<>"'\/]/g;
+
 export class HtmlObfuscator {
   constructor() {
   }
@@ -19,39 +30,7 @@ export class HtmlObfuscator {
       return str;
     }
 
-    let regexHTMLEnd   = new RegExp('<\/[A-Za-z0-9]+\\s?>');
-    let regexHTMLStart = new RegExp('<[A-Za-z0-9]+(\\s+\\S+.*)?>|<[A-Za-z0-9]+\\s?\/?>');
-
-    var newString = str;
-
-    for (var i = 0; i < str.length; i++) {
-      if (str.charAt(i) == '<') {
-        for (var j = i; j < str.length; j++) {
-          if (str.charAt(j) == '>') {
-            var tmpString = str.slice(i, j+1);
-            if (regexHTMLStart.test(tmpString) || regexHTMLEnd.test(tmpString)) {
-              var tmpString2 = tmpString;
-              tmpString2 = this.replaceHTMLCharacters(tmpString2);
-              newString = newString.replace(tmpString, tmpString2);
-              i = j;
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    return newString;
-  }
-
-  private replaceHTMLCharacters(str: string): string {
-    var newString = str;
-
-    newString = newString.replace('<', '&#60;');
-    newString = newString.replace('>', '&#62;');
-    newString = newString.replace('/', '&#47;');
-
-    return newString;
+    return str.replace(HTML_ENTITY_REGEX, (char) => HTML_ENTITY_MAP[char]);
   }
 }
 
