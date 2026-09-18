@@ -143,6 +143,28 @@ class RegExpLevel {
   }
 }
 
+const MAX_COMPONENT_PATTERN_LENGTH = 200;
+// Caps previousPatterns to limit per-call evaluation cost in makeComponentLogger().
+const MAX_STORED_COMPONENT_PATTERNS = 1000;
+const GLOB_SPECIAL_CHARS = /[.*+?^${}()|[\]\\]/g;
+
+/*
+ * Translates componentNamePattern into a glob-based Regex ('*' and '?').
+ * Escaping special characters prevents ReDoS (catastrophic backtracking)
+ * attacks and avoids crashes from malformed regex patterns.
+ */
+function globToRegExp(componentNamePattern: string): RegExp {
+  const escaped = componentNamePattern.replace(GLOB_SPECIAL_CHARS, '\\$&');
+  const translated = escaped.replace(/\\\*/g, '.*').replace(/\\\?/g, '.');
+  return new RegExp(translated);
+}
+
+function assertValidComponentNamePattern(componentNamePattern: string): void {
+  if (componentNamePattern.length > MAX_COMPONENT_PATTERN_LENGTH) {
+    throw new Error(`Component name pattern exceeds maximum length of ${MAX_COMPONENT_PATTERN_LENGTH}`);
+  }
+}
+
 export class Logger implements ZLUX.Logger {
   private destinations: Array<(componentName:string, minimumLevel: LogLevel, ...loggableItems:any[])=>void>;
   private configuration: {[key:string]:LogLevel};
@@ -356,7 +378,11 @@ export class Logger implements ZLUX.Logger {
   setLogLevelForComponentPattern(componentNamePattern:string, level:LogLevel):void{
     let theLogger:Logger = this;
     let componentNameArray:any[] = Object.keys(this.configuration);
-    var regex = new RegExp(componentNamePattern);
+    assertValidComponentNamePattern(componentNamePattern);
+    if (this.previousPatterns.length >= MAX_STORED_COMPONENT_PATTERNS) {
+      throw new Error(`Cannot store more than ${MAX_STORED_COMPONENT_PATTERNS} component name patterns`);
+    }
+    const regex = globToRegExp(componentNamePattern);
     this.previousPatterns.push(new RegExpLevel(regex, level));
     componentNameArray.filter(function(componentName) {
       return regex.test(componentName);
