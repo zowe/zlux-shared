@@ -215,6 +215,57 @@ describe('Logger record formatting', function() {
   });
 });
 
+describe('Logger setLogLevelForComponentPattern (glob semantics)', function() {
+  let patternLogger;
+
+  beforeEach(function() {
+    patternLogger = new logModule.Logger();
+  });
+
+  it('should treat "*" as a wildcard matching any run of characters', function() {
+    patternLogger.setLogLevelForComponentName('org.zowe.terminal.tn3270.400', logModule.LogLevel.WARN);
+    patternLogger.setLogLevelForComponentPattern('org.zowe.terminal.tn3270.*', logModule.LogLevel.TRACE);
+    assert.strictEqual(patternLogger.getComponentLevel('org.zowe.terminal.tn3270.400'), logModule.LogLevel.TRACE);
+  });
+
+  it('should treat "?" as a wildcard matching exactly one character', function() {
+    patternLogger.setLogLevelForComponentName('foo.bar', logModule.LogLevel.WARN);
+    patternLogger.setLogLevelForComponentName('foo.ba', logModule.LogLevel.WARN);
+    patternLogger.setLogLevelForComponentPattern('foo.ba?', logModule.LogLevel.TRACE);
+    assert.strictEqual(patternLogger.getComponentLevel('foo.bar'), logModule.LogLevel.TRACE);
+    assert.strictEqual(patternLogger.getComponentLevel('foo.ba'), logModule.LogLevel.WARN);
+  });
+
+  it('should treat regex metacharacters as literal text, not regex syntax', function() {
+    patternLogger.setLogLevelForComponentName('a.b', logModule.LogLevel.WARN);
+    patternLogger.setLogLevelForComponentName('axb', logModule.LogLevel.WARN);
+    patternLogger.setLogLevelForComponentPattern('a.b', logModule.LogLevel.TRACE);
+    assert.strictEqual(patternLogger.getComponentLevel('a.b'), logModule.LogLevel.TRACE);
+    assert.strictEqual(patternLogger.getComponentLevel('axb'), logModule.LogLevel.WARN);
+  });
+
+  it('should reject patterns longer than the maximum allowed length', function() {
+    const tooLong = 'a'.repeat(201);
+    assert.throws(function() {
+      patternLogger.setLogLevelForComponentPattern(tooLong, logModule.LogLevel.TRACE);
+    }, /exceeds maximum length/);
+  });
+
+  it('should not hang or throw on a catastrophic-backtracking-shaped pattern', function() {
+    const start = Date.now();
+    assert.doesNotThrow(function() {
+      patternLogger.setLogLevelForComponentPattern('(.*a){25}$', logModule.LogLevel.TRACE);
+    });
+    assert(Date.now() - start < 200, 'setLogLevelForComponentPattern took too long - possible ReDoS regression');
+  });
+
+  it('should not throw on a pattern that would be malformed regex syntax', function() {
+    assert.doesNotThrow(function() {
+      patternLogger.setLogLevelForComponentPattern('[', logModule.LogLevel.TRACE);
+    });
+  });
+});
+
 /* ------- The test actions  --------- */
 
 function testDuplicate(logger) {
