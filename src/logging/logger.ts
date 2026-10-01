@@ -431,7 +431,7 @@ export class Logger implements ZLUX.Logger {
         console.warn(`Error on stack analysis, ${e}`);
       }      
       (Error as any).prepareStackTrace = originalFunc; 
-      formatting+=`(${Logger.sanitizeToken(componentName)},${Logger.sanitizeToken(callerFunction)}:${Logger.sanitizeToken(callerLine)}) `;
+      formatting+=Logger.sanitizeToken(`(${componentName},${callerFunction}:${callerLine}) `);
     } else if (prependName) {
       formatting+=`(${Logger.sanitizeToken(componentName)},:) `;
     }
