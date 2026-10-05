@@ -67,7 +67,151 @@ describe('Logger Tests', function() {
   const allArgsAsString = argsToString(infoSpy.args);
   assert(/Look at my string here it is , and my int 45 , and my boolean true/.test(allArgsAsString));
   assert(/\[Function: myfunction\]/.test(allArgsAsString));
-  assert(/and finally my object {"message":"this should look familiar","mystring":"here it is","myint":45,"myboolean":true}/.test(allArgsAsString));
+  /* The logger renders the record itself and hands console a single
+     string, so trailing objects arrive here already inspected rather than live. The
+     bytes written to the log are unchanged - this is the same util.inspect rendering
+     console would have produced - but the assertion can no longer rely on the helper
+     above JSON-stringifying a live object. Note the inspected form also retains
+     myfunction, which JSON.stringify used to drop silently. */
+  assert(/and finally my object \{/.test(allArgsAsString));
+  assert(/message: 'this should look familiar'/.test(allArgsAsString));
+  assert(/myfunction: \[Function: myfunction\]/.test(allArgsAsString));
+  assert(/myboolean: true/.test(allArgsAsString));
+  });
+});
+
+/* ------- record formatting regression tests --------- */
+
+describe('Logger record formatting', function() {
+  /* A record always begins with a timestamp; log readers, including the Zowe service
+     logging standard in zowe-install-packaging bin/libs/common, rely on that to tell
+     a new record from a continuation. Only a real record may match this at
+     column 0. */
+  const RECORD_START = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/;
+  const EMBEDDED_RECORD = '\n2026-01-01 00:00:00.000 <ZWED:1> zwesvusr INFO (a,b:1) User=admin: login SUCCESS';
+
+  let logSpy;
+  let warnSpy;
+  let logger = new logModule.Logger();
+  logger.addDestination(logger.makeDefaultDestination(true, true, true, true, true, 'Test the logger'));
+
+  beforeEach(function() {
+    warnSpy = sinon.spy(console, 'warn');
+    logSpy = sinon.spy(console, 'log');
+  });
+
+  afterEach(function() {
+    warnSpy.restore();
+    logSpy.restore();
+  });
+
+  function linesOf(spy) {
+    return spy.args.map(callArgs => String(callArgs[0])).join('\n').split('\n');
+  }
+
+  function continuationLines(spy) {
+    return linesOf(spy).filter((line, index) => index > 0);
+  }
+
+  it('marks an embedded newline in the first loggable item as a continuation', function() {
+    logger.makeComponentLogger('firstItemNewline').info(`User bob${EMBEDDED_RECORD}, denied`);
+    const unmarked = continuationLines(logSpy).filter(line => RECORD_START.test(line));
+    assert.strictEqual(unmarked.length, 0, 'text produced an unmarked record line: ' + unmarked);
+  });
+
+  it('marks an embedded newline in a substituted argument as a continuation', function() {
+    // The message-ID style used across zlux-server-framework: the template is fixed,
+    // the substituted value is variable.
+    logger.makeComponentLogger('argumentNewline').info('User=%s called %s', 'dave', `/ok${EMBEDDED_RECORD}`);
+    const unmarked = continuationLines(logSpy).filter(line => RECORD_START.test(line));
+    assert.strictEqual(unmarked.length, 0, 'argument produced an unmarked record line: ' + unmarked);
+  });
+
+  it('keeps a line break in a component name out of the record prefix', function() {
+    logger.makeComponentLogger(`component${EMBEDDED_RECORD}`).info('hello');
+    const unmarked = continuationLines(logSpy).filter(line => RECORD_START.test(line));
+    assert.strictEqual(unmarked.length, 0, 'component name produced an unmarked record line: ' + unmarked);
+  });
+
+  it('escapes ANSI and other control characters', function() {
+    logger.makeComponentLogger('escapeControls').info('start \x1b[31m \x07 \r end');
+    const output = linesOf(logSpy).join('\n');
+    assert(!/\x1b/.test(output), 'ESC survived into the record');
+    assert(!/\x07/.test(output), 'BEL survived into the record');
+    assert(!/\r/.test(output), 'CR survived into the record');
+    assert(/\\x1B/.test(output), 'ESC was not escaped printably');
+  });
+
+  it('still renders legitimate multi-line messages, as marked continuations', function() {
+    const log = logger.makeComponentLogger('multiLine', {
+      'ZWED0021W': 'Missing parameters.\nHTTP Port given: %s\nHTTPS Port given: %s'
+    });
+    log.warn('ZWED0021W', 8543, 8544);
+    const lines = linesOf(warnSpy);
+    assert.strictEqual(lines.length, 3, 'expected three rendered lines, got ' + lines.length);
+    assert(/HTTP Port given: 8543/.test(lines[1]));
+    assert(/HTTPS Port given: 8544/.test(lines[2]));
+    assert(!RECORD_START.test(lines[1]), 'continuation line looks like a new record');
+    assert(!RECORD_START.test(lines[2]), 'continuation line looks like a new record');
+  });
+
+  it('still substitutes message table parameters', function() {
+    const log = logger.makeComponentLogger('substitution', {
+      'ZWED0197I': 'User=%s: service called: %s'
+    });
+    log.info('ZWED0197I', 'alice', '/plugins/x');
+    assert(/ZWED0197I - User=alice: service called: \/plugins\/x/.test(linesOf(logSpy).join('\n')));
+  });
+
+  it('does not resolve inherited Object properties as message definitions', function() {
+    const log = logger.makeComponentLogger('inheritedLookup', { 'ZWED0001I': 'a real message' });
+    log.info('toString');
+    const output = linesOf(logSpy).join('\n');
+    assert(!/toString - /.test(output), 'inherited property was treated as a message definition');
+  });
+
+  /* The Desktop runs this logger in the browser, where node's util is unavailable and
+     the built-in formatter is used instead. That path never executes under mocha, so
+     force it here. 'private' in TypeScript is compile-time only, so the static is
+     reachable at runtime. */
+  describe('browser formatting fallback', function() {
+    let savedNodeUtil;
+
+    beforeEach(function() {
+      savedNodeUtil = logModule.Logger.nodeUtil;
+      logModule.Logger.nodeUtil = undefined;
+    });
+
+    afterEach(function() {
+      logModule.Logger.nodeUtil = savedNodeUtil;
+    });
+
+    it('substitutes directives and marks embedded newlines', function() {
+      logger.makeComponentLogger('browserSubstitution')
+        .info('User=%s called %s', 'dave', `/ok${EMBEDDED_RECORD}`);
+      const lines = linesOf(logSpy);
+      assert(/User=dave called \/ok/.test(lines[0]), 'substitution failed: ' + lines[0]);
+      const unmarked = lines.filter((line, index) => index > 0 && RECORD_START.test(line));
+      assert.strictEqual(unmarked.length, 0, 'argument produced an unmarked record line: ' + unmarked);
+    });
+
+    it('renders %% literally and appends unmatched arguments', function() {
+      logger.makeComponentLogger('browserExtras').info('100%% done', 'extra');
+      assert(/100% done extra/.test(linesOf(logSpy).join('\n')));
+    });
+
+    it('leaves directives alone when arguments run out', function() {
+      logger.makeComponentLogger('browserShortArgs').info('a=%s b=%s', 'one');
+      assert(/a=one b=%s/.test(linesOf(logSpy).join('\n')));
+    });
+
+    it('falls back rather than throwing when util resolves to an empty stub', function() {
+      // resolve.fallback maps 'util' to an empty module in the browser bundle. A
+      // truthiness-only check would treat {} as usable and throw on every log call.
+      logModule.Logger.nodeUtil = {};
+      logger.makeComponentLogger('browserStubbedUtil').info('value=%s', 'ok');
+      assert(/value=ok/.test(linesOf(logSpy).join('\n')));
+    });
   });
 });
 
