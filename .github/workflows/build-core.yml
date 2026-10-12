@@ -16,7 +16,7 @@ jobs:
     uses: zowe/zlux-build/.github/workflows/build-core.yml@v3.x/staging
     secrets: inherit
     with:
-      SOURCE_REPO: zlux-platform
+      SOURCE_REPO: zlux-shared
       SOURCE_PR: ${{ github.event.pull_request.number || '' }}
 
-      ZLUX_PLATFORM: ${{ github.event.pull_request.number || '' }}
+      ZLUX_SHARED: ${{ github.event.pull_request.number || '' }}
