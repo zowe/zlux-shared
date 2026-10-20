@@ -92,7 +92,6 @@ export declare class Logger implements ZLUX.Logger {
      * the continuation prefix applied to the finished record.
      */
     private static escapeControlCharacters;
-    private static sanitizeLoggableItem;
     /**
      * Sanitizes a value used inside the record prefix. Component names can come from
      * request parameters, so they must not be able to introduce line breaks.
