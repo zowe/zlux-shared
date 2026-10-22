@@ -179,11 +179,13 @@ export class Logger implements ZLUX.Logger {
   private static useV8Tracing: boolean = false;
   private static nodeUtil: any;
   /**
-   * C0 control characters plus DEL, excluding TAB (\x09) and LF (\x0A).
-   * Escaping these stops ANSI/terminal escape sequences and lone CRs from reaching
-   * an operator's terminal or overwriting part of a written record.
+   * C0 control characters, DEL and the C1 control characters (U+0080-U+009F),
+   * excluding TAB (\x09) and LF (\x0A).
+   * Escaping these stops ANSI/terminal escape sequences (including the single-byte
+   * CSI, U+009B) and lone CRs from reaching an operator's terminal or overwriting
+   * part of a written record.
    */
-  private static controlCharacters: RegExp = /[\x00-\x08\x0B-\x1F\x7F]/g;
+  private static controlCharacters: RegExp = /[\x00-\x08\x0B-\x1F\x7F-\x9F]/g;
   /**
    * Prepended to every continuation line of a record. Log readers - including the
    * Zowe service logging standard in zowe-install-packaging bin/libs/common - treat
@@ -312,10 +314,6 @@ export class Logger implements ZLUX.Logger {
     });
   }
 
-  private static sanitizeLoggableItem(item: any): any {
-    return (typeof item === 'string') ? Logger.escapeControlCharacters(item) : item;
-  }
-
   /**
    * Sanitizes a value used inside the record prefix. Component names can come from
    * request parameters, so they must not be able to introduce line breaks.
@@ -442,7 +440,10 @@ export class Logger implements ZLUX.Logger {
     //Note: a directive inside the first loggable item is still part of the template.
     //Call sites should pass variable data as an argument rather than building it
     //into that item.
-    const message = Logger.formatLoggableItems((loggableItems || []).map(Logger.sanitizeLoggableItem));
+    //Escape the rendered text rather than the individual items, so that content that
+    //only appears during rendering, such as the stack and message of an Error, is
+    //neutralized as well.
+    const message = Logger.escapeControlCharacters(Logger.formatLoggableItems(loggableItems || []));
     //Mark continuation lines so an embedded newline cannot produce a line that
     //reads as an independent, correctly-prefixed record.
     const record = (formatting + message).replace(/\n/g, '\n' + Logger.continuationPrefix);

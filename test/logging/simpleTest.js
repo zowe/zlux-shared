@@ -142,6 +142,22 @@ describe('Logger record formatting', function() {
     assert(/\\x1B/.test(output), 'ESC was not escaped printably');
   });
 
+  it('escapes control characters inside an Error passed as a loggable item', function() {
+    const error = new Error('bad input \x1b[31m \r overwritten');
+    logger.makeComponentLogger('escapeErrorControls').warn(error);
+    const output = linesOf(warnSpy).join('\n');
+    assert(!/\x1b/.test(output), 'ESC from the Error survived into the record');
+    assert(!/\r/.test(output), 'CR from the Error survived into the record');
+    assert(/\\x1B/.test(output), 'ESC from the Error was not escaped printably');
+  });
+
+  it('escapes C1 control characters', function() {
+    logger.makeComponentLogger('escapeC1Controls').info('start \u009b31m \u0085 end');
+    const output = linesOf(logSpy).join('\n');
+    assert(!/[\u0080-\u009f]/.test(output), 'a C1 control character survived into the record');
+    assert(/\\x9B/.test(output), 'CSI was not escaped printably');
+  });
+
   it('still renders legitimate multi-line messages, as marked continuations', function() {
     const log = logger.makeComponentLogger('multiLine', {
       'ZWED0021W': 'Missing parameters.\nHTTP Port given: %s\nHTTPS Port given: %s'
