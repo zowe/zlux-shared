@@ -18,6 +18,7 @@
 // maybe polyfill from https://www.stacktracejs.com/#!/docs/stacktrace-js 
 
 declare var process: {pid: number,
+                     versions?: {node?: string},
                      geteuid: any};
 var componentLoggers: Map<string, ComponentLogger>; // Because each componentLogger is accessible through its parent logger at run-time, and componentLoggers 
 // are not truly private with 'private', we use a local variable here to store each of them privately
