@@ -231,6 +231,26 @@ describe('Logger record formatting', function() {
   });
 });
 
+describe('Logger construction where evaluating strings as code is refused', function() {
+  it('detects its runtime without new Function', function() {
+    // A page whose Content-Security-Policy omits 'unsafe-eval' makes new Function throw an
+    // EvalError, which used to abort the Logger constructor in every such iframe.
+    const OriginalFunction = global.Function;
+    const savedProcessString = logModule.Logger.processString;
+    logModule.Logger.processString = undefined;
+    global.Function = function() {
+      throw new EvalError("Refused to evaluate a string as JavaScript because 'unsafe-eval' is not an allowed source of script");
+    };
+    try {
+      assert.doesNotThrow(() => new logModule.Logger());
+      assert(/^<.+:\d+> $/.test(logModule.Logger.processString), 'unexpected process string: ' + logModule.Logger.processString);
+    } finally {
+      global.Function = OriginalFunction;
+      logModule.Logger.processString = savedProcessString;
+    }
+  });
+});
+
 describe('Logger setLogLevelForComponentPattern (glob semantics)', function() {
   let patternLogger;
 

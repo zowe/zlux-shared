@@ -18,6 +18,7 @@
 // maybe polyfill from https://www.stacktracejs.com/#!/docs/stacktrace-js 
 
 declare var process: {pid: number,
+                     versions?: {node?: string},
                      geteuid: any};
 var componentLoggers: Map<string, ComponentLogger>; // Because each componentLogger is accessible through its parent logger at run-time, and componentLoggers 
 // are not truly private with 'private', we use a local variable here to store each of them privately
@@ -209,8 +210,10 @@ export class Logger implements ZLUX.Logger {
       if (Logger.processStringPrefix){
         defaultPrefix = Logger.processStringPrefix;
       }
-      let runningInNode = new Function(`try { return this === global; } catch (error) { return false; }`);
-      if (runningInNode()) {
+      //Not detected through new Function(): a page whose Content-Security-Policy omits
+      //'unsafe-eval' refuses to evaluate it, and creating a Logger would then throw.
+      let runningInNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+      if (runningInNode) {
         Logger.useV8Tracing = true;
         Logger.processString = `<${defaultPrefix}:${process.pid}> `;
         Logger.os = require('os');
