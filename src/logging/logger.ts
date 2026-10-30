@@ -18,6 +18,7 @@
 // maybe polyfill from https://www.stacktracejs.com/#!/docs/stacktrace-js 
 
 declare var process: {pid: number,
+                     versions?: {node?: string},
                      geteuid: any};
 var componentLoggers: Map<string, ComponentLogger>; // Because each componentLogger is accessible through its parent logger at run-time, and componentLoggers 
 // are not truly private with 'private', we use a local variable here to store each of them privately
@@ -179,11 +180,13 @@ export class Logger implements ZLUX.Logger {
   private static useV8Tracing: boolean = false;
   private static nodeUtil: any;
   /**
-   * C0 control characters plus DEL, excluding TAB (\x09) and LF (\x0A).
-   * Escaping these stops ANSI/terminal escape sequences and lone CRs from reaching
-   * an operator's terminal or overwriting part of a written record.
+   * C0 control characters, DEL and the C1 control characters (U+0080-U+009F),
+   * excluding TAB (\x09) and LF (\x0A).
+   * Escaping these stops ANSI/terminal escape sequences (including the single-byte
+   * CSI, U+009B) and lone CRs from reaching an operator's terminal or overwriting
+   * part of a written record.
    */
-  private static controlCharacters: RegExp = /[\x00-\x08\x0B-\x1F\x7F]/g;
+  private static controlCharacters: RegExp = /[\x00-\x08\x0B-\x1F\x7F-\x9F]/g;
   /**
    * Prepended to every continuation line of a record. Log readers - including the
    * Zowe service logging standard in zowe-install-packaging bin/libs/common - treat
@@ -207,8 +210,10 @@ export class Logger implements ZLUX.Logger {
       if (Logger.processStringPrefix){
         defaultPrefix = Logger.processStringPrefix;
       }
-      let runningInNode = new Function(`try { return this === global; } catch (error) { return false; }`);
-      if (runningInNode()) {
+      //Not detected through new Function(): a page whose Content-Security-Policy omits
+      //'unsafe-eval' refuses to evaluate it, and creating a Logger would then throw.
+      let runningInNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+      if (runningInNode) {
         Logger.useV8Tracing = true;
         Logger.processString = `<${defaultPrefix}:${process.pid}> `;
         Logger.os = require('os');
@@ -310,10 +315,6 @@ export class Logger implements ZLUX.Logger {
       const code: number = character.charCodeAt(0);
       return '\\x' + (code < 16 ? '0' : '') + code.toString(16).toUpperCase();
     });
-  }
-
-  private static sanitizeLoggableItem(item: any): any {
-    return (typeof item === 'string') ? Logger.escapeControlCharacters(item) : item;
   }
 
   /**
@@ -442,7 +443,10 @@ export class Logger implements ZLUX.Logger {
     //Note: a directive inside the first loggable item is still part of the template.
     //Call sites should pass variable data as an argument rather than building it
     //into that item.
-    const message = Logger.formatLoggableItems((loggableItems || []).map(Logger.sanitizeLoggableItem));
+    //Escape the rendered text rather than the individual items, so that content that
+    //only appears during rendering, such as the stack and message of an Error, is
+    //neutralized as well.
+    const message = Logger.escapeControlCharacters(Logger.formatLoggableItems(loggableItems || []));
     //Mark continuation lines so an embedded newline cannot produce a line that
     //reads as an independent, correctly-prefixed record.
     const record = (formatting + message).replace(/\n/g, '\n' + Logger.continuationPrefix);

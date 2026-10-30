@@ -142,6 +142,22 @@ describe('Logger record formatting', function() {
     assert(/\\x1B/.test(output), 'ESC was not escaped printably');
   });
 
+  it('escapes control characters inside an Error passed as a loggable item', function() {
+    const error = new Error('bad input \x1b[31m \r overwritten');
+    logger.makeComponentLogger('escapeErrorControls').warn(error);
+    const output = linesOf(warnSpy).join('\n');
+    assert(!/\x1b/.test(output), 'ESC from the Error survived into the record');
+    assert(!/\r/.test(output), 'CR from the Error survived into the record');
+    assert(/\\x1B/.test(output), 'ESC from the Error was not escaped printably');
+  });
+
+  it('escapes C1 control characters', function() {
+    logger.makeComponentLogger('escapeC1Controls').info('start \u009b31m \u0085 end');
+    const output = linesOf(logSpy).join('\n');
+    assert(!/[\u0080-\u009f]/.test(output), 'a C1 control character survived into the record');
+    assert(/\\x9B/.test(output), 'CSI was not escaped printably');
+  });
+
   it('still renders legitimate multi-line messages, as marked continuations', function() {
     const log = logger.makeComponentLogger('multiLine', {
       'ZWED0021W': 'Missing parameters.\nHTTP Port given: %s\nHTTPS Port given: %s'
@@ -212,6 +228,26 @@ describe('Logger record formatting', function() {
       logger.makeComponentLogger('browserStubbedUtil').info('value=%s', 'ok');
       assert(/value=ok/.test(linesOf(logSpy).join('\n')));
     });
+  });
+});
+
+describe('Logger construction where evaluating strings as code is refused', function() {
+  it('detects its runtime without new Function', function() {
+    // A page whose Content-Security-Policy omits 'unsafe-eval' makes new Function throw an
+    // EvalError, which used to abort the Logger constructor in every such iframe.
+    const OriginalFunction = global.Function;
+    const savedProcessString = logModule.Logger.processString;
+    logModule.Logger.processString = undefined;
+    global.Function = function() {
+      throw new EvalError("Refused to evaluate a string as JavaScript because 'unsafe-eval' is not an allowed source of script");
+    };
+    try {
+      assert.doesNotThrow(() => new logModule.Logger());
+      assert(/^<.+:\d+> $/.test(logModule.Logger.processString), 'unexpected process string: ' + logModule.Logger.processString);
+    } finally {
+      global.Function = OriginalFunction;
+      logModule.Logger.processString = savedProcessString;
+    }
   });
 });
 
