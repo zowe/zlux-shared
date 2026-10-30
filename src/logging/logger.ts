@@ -209,8 +209,10 @@ export class Logger implements ZLUX.Logger {
       if (Logger.processStringPrefix){
         defaultPrefix = Logger.processStringPrefix;
       }
-      let runningInNode = new Function(`try { return this === global; } catch (error) { return false; }`);
-      if (runningInNode()) {
+      //Not detected through new Function(): a page whose Content-Security-Policy omits
+      //'unsafe-eval' refuses to evaluate it, and creating a Logger would then throw.
+      let runningInNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+      if (runningInNode) {
         Logger.useV8Tracing = true;
         Logger.processString = `<${defaultPrefix}:${process.pid}> `;
         Logger.os = require('os');
